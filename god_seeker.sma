@@ -25,7 +25,7 @@ new bool:GOD_SEEKER_BAD_USERS[MAX_PLAYERS + 1] = {false, ...};
 
 
 #define PLUGIN "God Seeker"
-#define VERSION "1.6"
+#define VERSION "1.7"
 #define AUTHOR "karaulov"
 
 new bool:g_MsgBlocked = false;
@@ -54,13 +54,6 @@ public plugin_init()
 	RegisterHookChain(RG_PlayerBlind, "PlayerBlind")
 	
 	register_message(get_user_msgid("StatusValue"), "message_statusvalue")
-#if defined _custom_player_models_included
-	if (is_plugin_loaded("Custom Player Models API"))
-	{
-		g_bUsedCustomPlayerModelsApi = true;
-		register_forward(FM_AddToFullPack, "AddToFullPack_Post", ._post = true);
-	}
-#endif
 	RegisterHookChain(RG_CBasePlayer_Spawn, "Player_Spawn_Post", .post = true)
 	
 	g_MsgShadow = get_user_msgid ( "ShadowIdx" );
@@ -172,8 +165,12 @@ public plugin_precache( )
 	g_iShadowSprite = precache_model("sprites/shadow_circle.spr");
 	
 #if defined _custom_player_models_included
-	if (g_bUsedCustomPlayerModelsApi)
+	if (is_plugin_loaded("Custom Player Models API") && file_exists(INVISIBLED_MODEL_PATH_CT) && file_exists(INVISIBLED_MODEL_PATH_T))
+	{
+		g_bUsedCustomPlayerModelsApi = true;
 		custom_player_models_register("invisibled_model",INVISIBLED_MODEL_PATH_T,0,INVISIBLED_MODEL_PATH_CT,0);
+		register_forward(FM_AddToFullPack, "AddToFullPack_Post", ._post = true);
+	}
 #endif
 }
 
