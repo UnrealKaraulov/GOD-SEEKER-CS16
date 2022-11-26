@@ -37,8 +37,7 @@ new bool:g_bUsedCustomPlayerModelsApi = false;
 public plugin_init() 
 {
 	register_plugin(PLUGIN, VERSION, AUTHOR)
-	//https://www.gametracker.com/search/?search_by=server_variable&search_by2=god_seeker&query=&loc=_all&sort=&order=
-	//https://gs-monitor.com/?searchType=2&variableName=god_seeker&variableValue=&submit=&mode=
+	
 	create_cvar("god_seeker", VERSION, FCVAR_SERVER | FCVAR_SPONLY);
 	
 	register_clcmd("say /wh", "give_me_god")
