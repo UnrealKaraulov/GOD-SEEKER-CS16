@@ -7,6 +7,7 @@
 
 // Если не используете то закомментировать! Но настоятельно рекомендую использовать именно эту функцию.
 #tryinclude <custom_player_models>
+// https://dev-cs.ru/resources/928/ этот
 
 #define ADMIN_ACCESS_LEVEL ADMIN_BAN
 
