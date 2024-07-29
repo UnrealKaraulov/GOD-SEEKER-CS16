@@ -9,7 +9,7 @@
 #define VERSION "2.0"
 #define AUTHOR "karaulov"
 
-#define ADMIN_ACCESS_LEVEL ADMIN_BAN
+#define ADMIN_ACCESS_LEVEL ADMIN_ALL
 
 #define INVISIBLED_MODEL_PATH "models/player/gsfp_vip/gsfp_vip.mdl"
 
@@ -140,7 +140,7 @@ public disable_shadow(id)
 
 public disable_shadow_all()
 {
-	for(new i = 0; i < MAX_PLAYERS + 1;i++)
+	for(new i = 0; i <= MaxClients; i++)
 	{
 		if (is_user_connected(i))
 			disable_shadow(i);
@@ -149,7 +149,7 @@ public disable_shadow_all()
 
 public enable_shadow_all()
 {
-	for(new i = 0; i < MAX_PLAYERS + 1;i++)
+	for(new i = 0; i <= MaxClients; i++)
 	{
 		if (is_user_connected(i))
 			enable_shadow(i);
@@ -293,7 +293,7 @@ public seeker_menu(id, vmenu, item)
 				print_bad_users();
 				for(new i = 0; i <= MaxClients;i++)
 				{
-					if (REU_GetProtocol(id) >= 48)
+					if (is_user_connected(i) && REU_GetProtocol(id) >= 48)
 						query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
 				}
 			}
@@ -397,18 +397,25 @@ public disable_god_seeker(id)
 		enable_shadow_all();
 		set_msg_block(g_iMsgShadow, BLOCK_NOT);
 	}
+
 	g_iGodSeekerUsers--;
-	g_bGodSeekerActivated[id] = false;
 	g_bGodSeekerKnifeTeleport[id] = false;
 	g_bGodSeekerDisableDamage[id] = false;
 	g_bGodSeekerDisableSounds[id] = false;
 	g_bGodSeekerDisableUsername[id] = false;
 	g_iGodSeekerInvisMode[id] = 0;
-	set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
-	set_entity_visibility(id,1);
 
 	if(is_user_connected(id))
-		client_print(id, print_chat, "Рeжим God Seeker oтключeн.");
+	{
+		set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
+		set_entity_visibility(id,1);
+		if (g_bGodSeekerActivated[id])
+		{
+			client_print(id, print_chat, "Рeжим God Seeker oтключeн.");
+		}
+	}
+	
+	g_bGodSeekerActivated[id] = false;
 }
 
 public print_bad_client(id, type)
@@ -434,6 +441,7 @@ public client_putinserver(id)
 
 	if (g_bGodSeekerActivated[id])
 		disable_god_seeker(id)
+		
 	if (!is_user_bot(id) && !is_user_hltv(id))
 	{
 		query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
@@ -443,6 +451,9 @@ public client_putinserver(id)
 public client_disconnected(id)
 {
 	g_bBadClients[id] = false;
+
+	if (g_bGodSeekerActivated[id])
+		disable_god_seeker(id)
 }
 
 public print_bad_users()
