@@ -7,6 +7,7 @@
 #define VERSION "2.0"
 #define AUTHOR "karaulov"
 
+// Введите сюда требуемый уровень доступа из amxconst.inc
 #define ADMIN_ACCESS_LEVEL ADMIN_BAN
 
 new const INVISIBLED_MODEL_PATH[] = "models/player/gsfp_vip/gsfp_vip.mdl";
@@ -191,7 +192,7 @@ public seeker_menu(id, vmenu, item)
 			rg_reset_user_model(id, true);
 			if (g_iGodSeekerInvisMode[id] == 1)
 			{
-				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 2! Внимание тебя видно в дыму!")
+				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 2! Внимание тебя видно в дыму!")
 				
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1)
 				g_iGodSeekerInvisMode[id] = 2;
@@ -199,7 +200,7 @@ public seeker_menu(id, vmenu, item)
 			}
 			else if (g_iGodSeekerInvisMode[id] == 2)
 			{	
-				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 3!")
+				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 3!")
 				
 				rg_set_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1)
 				g_iGodSeekerInvisMode[id] = 3;
@@ -208,7 +209,7 @@ public seeker_menu(id, vmenu, item)
 			else if (g_iGodSeekerInvisMode[id] == 3)
 			{
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
-				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 4!")
+				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 4! [Слабый]")
 				g_iGodSeekerInvisMode[id] = 4;
 				rg_give_item(id, "weapon_knife");
 			}
@@ -217,7 +218,7 @@ public seeker_menu(id, vmenu, item)
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 				rg_set_user_model(id, INVISIBLED_MODEL_NAME, true);
 
-				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 5!")
+				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 5!")
 				g_iGodSeekerInvisMode[id] = 5;
 
 				for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
@@ -235,14 +236,14 @@ public seeker_menu(id, vmenu, item)
 			}
 			else if (g_iGodSeekerInvisMode[id] == 5)
 			{
-				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти oтключeн!")
+				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти oтключeн!")
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 				g_iGodSeekerInvisMode[id] = 0;
 				rg_give_item(id, "weapon_knife");
 			}
 			else 
 			{
-				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 1!")
+				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 1! [Слабый]")
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0)
 				g_iGodSeekerInvisMode[id] = 1;
 				rg_give_item(id, "weapon_knife");
@@ -316,7 +317,7 @@ public enable_god_seeker(id)
 	log_to_file( "god_seeker.log", "Админиcтpaтop %s aктивиpoвaл peжим God Seeker.", username )
 	server_print("Админиcтpaтop %s aктивиpoвaл peжим God Seeker.", username)
 
-	client_print(id, print_chat, "[God seeker] Тeпepь ты в peжимe God seeker. Нacтpoйки /godmenu");
+	client_print(id, print_chat, "[God Seeker] Тeпepь ты в peжимe God seeker. Нacтpoйки /godmenu");
 	print_bad_users(0);
 
 	set_msg_block(g_iMsgShadow, BLOCK_SET);
@@ -384,8 +385,8 @@ public print_bad_users(id)
 				{
 					new name[MAX_NAME_LENGTH];
 					get_user_name(pid,name,charsmax(name))
-					client_print(iPlayer,print_console, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
-					client_print(iPlayer,print_chat, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
+					client_print(iPlayer,print_console, "[God Seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
+					client_print(iPlayer,print_chat, "[God Seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
 				}
 			}
 		}
@@ -421,7 +422,7 @@ public CBasePlayer_PreThink_Post(id)
 		{
 			if (is_bad_aiming(id))
 			{
-				client_print(id,print_chat, "[God seeker] Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!");
+				client_print(id,print_chat, "[God Seeker] Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!");
 			}
 			else 
 			{
@@ -429,11 +430,11 @@ public CBasePlayer_PreThink_Post(id)
 				if (get_teleport_point(id,TeleportPoint))
 				{
 					teleportPlayer(id,TeleportPoint);
-					client_print(id,print_chat, "[God seeker] Ты пepeмecтилcя к цeли!");
+					client_print(id,print_chat, "[God Seeker] Ты пepeмecтилcя к цeли!");
 				}
 				else 
 				{
-					client_print(id,print_chat, "[God seeker] Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!");
+					client_print(id,print_chat, "[God Seeker] Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!");
 				}
 			}
 			g_bGodSeekerKnifeTeleport[id] = false;
