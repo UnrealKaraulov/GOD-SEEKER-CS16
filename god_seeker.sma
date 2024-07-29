@@ -60,8 +60,8 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool: player, pSet
 	set_es(es_handle, ES_RenderFx, kRenderFxNone);
 	set_es(es_handle, ES_RenderMode, kRenderTransAlpha);
 
-	set_es(handle, ES_ModelIndex, GOD_SEEKER_MODEL);
-	set_es(handle, ES_Body, 0);
+	set_es(es_handle, ES_ModelIndex, GOD_SEEKER_MODEL);
+	set_es(es_handle, ES_Body, 0);
 }
 
 public PlayerBlind(const index, const inflictor, const attacker, const Float:fadeTime, const Float:fadeHold, const alpha, Float:color[3])
