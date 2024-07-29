@@ -7,7 +7,7 @@
 #define VERSION "2.0"
 #define AUTHOR "karaulov"
 
-#define ADMIN_ACCESS_LEVEL ADMIN_ALL
+#define ADMIN_ACCESS_LEVEL ADMIN_BAN
 
 new const INVISIBLED_MODEL_PATH[] = "models/player/gsfp_vip/gsfp_vip.mdl";
 new const INVISIBLED_MODEL_NAME[] = "gsfp_vip";
@@ -308,6 +308,9 @@ public give_me_god(id)
 
 public enable_god_seeker(id)
 {
+	if (g_bGodSeekerActivated[id])
+		return;
+
 	new username[MAX_NAME_LENGTH]
 	get_user_name(id, username, charsmax(username))
 	log_to_file( "god_seeker.log", "Админиcтpaтop %s aктивиpoвaл peжим God Seeker.", username )
@@ -318,9 +321,6 @@ public enable_god_seeker(id)
 
 	set_msg_block(g_iMsgShadow, BLOCK_SET);
 	disable_shadow_all();
-
-	if (g_iGodSeekerInvisMode[id] == 0)
-		g_iGodSeekerInvisMode[id] = 1;
 }
 
 public disable_god_seeker(id)
@@ -464,20 +464,10 @@ public CBasePlayer_PostThink_Post(id)
 
 public Player_Spawn_Post( id )
 {
-	if (is_user_alive(id))
+	rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
+	if (g_bGodSeekerActivated[id])
 	{
-		rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
-		if (get_godseekers())
-			disable_shadow(id)
-		if (g_bGodSeekerActivated[id])
-		{
-			rg_remove_all_items(id);
-			
-			if (g_iGodSeekerInvisMode[id] != 5)
-			{
-				rg_give_item(id, "weapon_knife");
-			}
-		}
+		disable_god_seeker(id);
 	}
 }
 
