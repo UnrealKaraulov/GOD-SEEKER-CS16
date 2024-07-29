@@ -1,9 +1,9 @@
 #include <amxmodx>
-#include <engine>
 #include <reapi>
+#include <engine>
 #include <fakemeta>
-#include <fun>
 #include <hamsandwich>
+#include <xs>
 
 #define PLUGIN "God Seeker"
 #define VERSION "2.0"
@@ -13,11 +13,6 @@
 
 #define INVISIBLED_MODEL_PATH "models/player/gsfp_vip/gsfp_vip.mdl"
 
-new g_iModelInvis = 0;
-new g_iMsgShadow;
-new g_iShadowSprite;
-
-new g_iGodSeekerInvisMode[MAX_PLAYERS + 1] = 0;
 
 new bool:g_bGodSeekerActivated[MAX_PLAYERS + 1] = false;
 new bool:g_bGodSeekerDisableSounds[MAX_PLAYERS + 1] = false;
@@ -27,6 +22,15 @@ new bool:g_bGodSeekerKnifeTeleport[MAX_PLAYERS + 1] = false;
 new bool:g_bBadClients[MAX_PLAYERS + 1] = {false, ...};
 new bool:g_bBlockShadowMsg = false;
 
+new g_pCommonTr;
+
+new g_iModelInvis = 0;
+new g_iMsgShadow;
+new g_iShadowSprite;
+
+new g_iGodSeekerInvisMode[MAX_PLAYERS + 1] = 0;
+
+new Float:g_fLastUpdateMinModels[MAX_PLAYERS + 1] = {0.0, ...};
 
 public plugin_init() 
 {
@@ -50,18 +54,31 @@ public plugin_init()
 	RegisterHookChain(RG_CBasePlayer_Spawn, "Player_Spawn_Post", .post = true)
 	
 	g_iMsgShadow = get_user_msgid ( "ShadowIdx" );
+
+	g_pCommonTr = create_tr2();
+}
+
+public plugin_end()
+{
+	free_tr2(g_pCommonTr);
 }
 
 public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet) 
 {
-	if(!player || host > MaxClients || ent > MaxClients || !g_bGodSeekerActivated[ent] || g_iGodSeekerInvisMode[ent] != 5 || g_bBadClients[host] )
+	if(!player || host > MaxClients || ent > MaxClients || !g_bGodSeekerActivated[ent] || g_iGodSeekerInvisMode[ent] != 5 )
 		return;
 	
-	set_es(es_handle, ES_RenderAmt, 1);
-	set_es(es_handle, ES_RenderFx, kRenderFxNone);
-	set_es(es_handle, ES_RenderMode, kRenderTransAlpha);
-	set_es(es_handle, ES_ModelIndex, g_iModelInvis);
-	set_es(es_handle, ES_Body, 1);
+	if (g_bBadClients[host])
+	{
+		set_es(es_handle, ES_RenderAmt, 0);
+		set_es(es_handle, ES_RenderFx, kRenderFxNone);
+		set_es(es_handle, ES_RenderMode, kRenderTransAlpha);
+	}
+	else 
+	{
+		set_es(es_handle, ES_ModelIndex, g_iModelInvis);
+		set_es(es_handle, ES_Body, 1);
+	}
 }
 
 public PlayerBlind(const index, const inflictor, const attacker, const Float:fadeTime, const Float:fadeHold, const alpha, Float:color[3])
@@ -166,7 +183,7 @@ public Player_Spawn_Post( id )
 {
 	if (is_user_alive(id))
 	{
-		set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
+		rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 		if (get_godseekers())
 			disable_shadow(id)
 		if (g_bGodSeekerActivated[id])
@@ -262,7 +279,7 @@ public seeker_menu(id, vmenu, item)
 			{
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 2! Внимание тебя видно в дыму!")
 				
-				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1)
+				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1)
 				g_iGodSeekerInvisMode[id] = 2;
 				rg_give_item(id, "weapon_knife");
 			}
@@ -270,7 +287,7 @@ public seeker_menu(id, vmenu, item)
 			{	
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 3!")
 				
-				set_user_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1)
+				rg_set_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1)
 				g_iGodSeekerInvisMode[id] = 3;
 				rg_give_item(id, "weapon_knife");
 			}
@@ -278,36 +295,41 @@ public seeker_menu(id, vmenu, item)
 			{
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 4!")
 				set_entity_visibility(id,0);
-				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
+				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 				g_iGodSeekerInvisMode[id] = 4;
 				rg_give_item(id, "weapon_knife");
 			}
 			else if (g_iGodSeekerInvisMode[id] == 4)
 			{
 				set_entity_visibility(id,1);
-				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
+				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 5!")
 				g_iGodSeekerInvisMode[id] = 5;
-				print_bad_users();
-				for(new i = 0; i <= MaxClients;i++)
+
+				//print_bad_users();
+
+				for(new iPlayer = 0; iPlayer <= MaxClients; iPlayer++)
 				{
-					if (is_user_connected(i) && REU_GetProtocol(id) >= 48)
-						query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
+					if (is_user_connected(iPlayer) && floatabs(get_gametime() - g_fLastUpdateMinModels[iPlayer]) > 2.0)
+					{
+						query_client_cvar(iPlayer, "cl_minmodels", "cl_minmodels_callback");
+						g_fLastUpdateMinModels[iPlayer] = get_gametime();
+					}
 				}
 			}
 			else if (g_iGodSeekerInvisMode[id] == 5)
 			{
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти oтключeн!")
 				set_entity_visibility(id,1);
-				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
+				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 				g_iGodSeekerInvisMode[id] = 0;
 				rg_give_item(id, "weapon_knife");
 			}
 			else 
 			{
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 1!")
-				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0)
+				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0)
 				g_iGodSeekerInvisMode[id] = 1;
 				rg_give_item(id, "weapon_knife");
 			}
@@ -388,7 +410,7 @@ public disable_god_seeker(id)
 {
 	if(is_user_connected(id))
 	{
-		set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
+		rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 		set_entity_visibility(id,1);
 		if (g_bGodSeekerActivated[id])
 		{
@@ -403,23 +425,6 @@ public disable_god_seeker(id)
 		g_bBlockShadowMsg = false;
 		enable_shadow_all();
 		set_msg_block(g_iMsgShadow, BLOCK_NOT);
-	}
-}
-
-public print_bad_client(id, type)
-{
-	g_bBadClients[id] = true;
-	
-	for(new iPlayer = 0; iPlayer <= MaxClients; iPlayer++)
-	{
-		if (g_bGodSeekerActivated[iPlayer])
-		{
-			new name[MAX_NAME_LENGTH];
-			get_user_name(id,name,charsmax(name))
-			client_print(iPlayer,print_console, "[God seeker] Игpoк %s вoшeл %s",name, type == 1 ? "co cтapoгo клиeнтa" : "c cl_minmodels 1");
-			client_print(iPlayer,print_chat, "[God seeker] Игpoк %s вoшeл %s",name, type == 1 ? "co cтapoгo клиeнтa" : "c cl_minmodels 1");
-			client_print(iPlayer,print_chat, "[God seeker] И мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"");
-		}
 	}
 }
 
@@ -451,6 +456,23 @@ public client_disconnected(id)
 		disable_god_seeker(id)
 }
 
+public print_bad_client(id, type)
+{
+	g_bBadClients[id] = true;
+	
+	for(new iPlayer = 0; iPlayer <= MaxClients; iPlayer++)
+	{
+		if (iPlayer != id && g_bGodSeekerActivated[iPlayer])
+		{
+			new name[MAX_NAME_LENGTH];
+			get_user_name(id,name,charsmax(name))
+			client_print(iPlayer,print_console, "[God seeker] Игpoк %s вoшeл %s",name, type == 1 ? "co cтapoгo клиeнтa" : "c cl_minmodels 1");
+			client_print(iPlayer,print_chat, "[God seeker] Игpoк %s вoшeл %s",name, type == 1 ? "co cтapoгo клиeнтa" : "c cl_minmodels 1");
+			client_print(iPlayer,print_chat, "[God seeker] И мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"");
+		}
+	}
+}
+
 public print_bad_users()
 {
 	for(new iPlayer = 0; iPlayer <= MaxClients; iPlayer++)
@@ -459,7 +481,7 @@ public print_bad_users()
 		{
 			for(new pid = 0; pid <= MaxClients;pid++)
 			{
-				if (is_user_connected(pid) && g_bBadClients[pid])
+				if (iPlayer != pid && is_user_connected(pid) && g_bBadClients[pid])
 				{
 					new name[MAX_NAME_LENGTH];
 					get_user_name(pid,name,charsmax(name))
@@ -491,17 +513,25 @@ public client_PreThink(id)
 {
 	if(g_bGodSeekerActivated[id] && g_bGodSeekerKnifeTeleport[id])
 	{
-		new g_Flags = entity_get_int(id,EV_INT_button)
+		new g_Flags = get_entvar(id,var_button);
 		if(g_Flags & IN_ATTACK && get_user_weapon(id) == CSW_KNIFE)
 		{
 			if (is_bad_aiming(id))
 			{
-				client_print(id,print_chat, "[God seeker] Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!")
+				client_print(id,print_chat, "[God seeker] Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!");
 			}
 			else 
 			{
-				teleportPlayer(id)
-				client_print(id,print_chat, "[God seeker] Ты пepeмecтилcя к цeли!")
+				new Float:TeleportPoint[3];
+				if (get_teleport_point(id,TeleportPoint))
+				{
+					teleportPlayer(id,TeleportPoint);
+					client_print(id,print_chat, "[God seeker] Ты пepeмecтилcя к цeли!");
+				}
+				else 
+				{
+					client_print(id,print_chat, "[God seeker] Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!");
+				}
 			}
 			g_bGodSeekerKnifeTeleport[id] = false;
 			set_task(0.5,"reenable_teleport",id);
@@ -515,15 +545,15 @@ public client_PostThink(id)
 	{
 		if (g_iGodSeekerInvisMode[id] == 1)
 		{
-			set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0)
+			rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0);
 		}
 		else if (g_iGodSeekerInvisMode[id] == 2)
 		{
-			set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1)
+			rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1);
 		}
 		else if (g_iGodSeekerInvisMode[id] == 3)
 		{
-			set_user_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1)
+			rg_set_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1);
 		}
 	}
 }
@@ -539,8 +569,8 @@ public message_statusvalue()
 	new pid = get_msg_arg_int(2);
 	if (get_msg_arg_int(1) == 2 && g_bGodSeekerActivated[pid] && g_bGodSeekerDisableUsername[pid])
 	{
-		set_msg_arg_int(1, get_msg_argtype(1), 1)
-		set_msg_arg_int(2, get_msg_argtype(2), 0)
+		set_msg_arg_int(1, get_msg_argtype(1), 1);
+		set_msg_arg_int(2, get_msg_argtype(2), 0);
 	}
 }
 
@@ -553,74 +583,124 @@ public SV_StartSound_Pre(const iRecipients, const iEntity, const iChannel, const
 	return HC_CONTINUE;
 }
 
-public teleportPlayer(id)
+public get_godseekers()
 {
-	new NewLocation[3];
-	get_user_origin(id, NewLocation, 3);
-	set_user_origin(id, NewLocation);
-	new Float:pLook[3]
-	entity_get_vector(id, EV_VEC_angles, pLook)
-	pLook[1]+=float(180)
-	entity_set_vector(id, EV_VEC_angles, pLook)
-	entity_set_int(id, EV_INT_fixangle, 1)
-	unstuckplayer( id )
-	drop_to_floor( id )
+	new godseekers = 0;
+	for(new i = 1; i <= MaxClients; i++)
+	{
+		if(g_bGodSeekerActivated[i])
+		{
+			godseekers++;
+		}
+	}
+
+	return godseekers;
 }
+
+stock teleportPlayer(id, Float:TeleportPoint[3])
+{
+	new Float:pOrigin[3];
+	get_entvar(id, var_origin, pOrigin);
+	set_entvar(id, var_origin, TeleportPoint);
+	new Float:pLook[3];
+	get_entvar(id, var_angles, pLook);
+	pLook[1]+=180.0;
+	set_entvar(id, var_angles, pLook);
+	set_entvar(id, var_fixangle, 1);
+	set_entvar(id, var_velocity,Float:{0.0,0.0,0.0});
+	unstuck_player( id );
+}
+
+stock bool:get_teleport_point(iPlayer, Float:newTeleportPoint[3])
+{
+	new iEyesOrigin[ 3 ];
+	get_user_origin( iPlayer, iEyesOrigin, Origin_Eyes );
+	
+	new iEyesEndOrigin[ 3 ];
+	get_user_origin( iPlayer, iEyesEndOrigin, Origin_AimEndEyes );
+	
+	new Float:vecEyesOrigin[ 3 ];
+	IVecFVec( iEyesOrigin, vecEyesOrigin );
+	
+	new Float:vecEyesEndOrigin[ 3 ];
+	IVecFVec( iEyesEndOrigin, vecEyesEndOrigin );
+	
+	new maxDistance = get_distance(iEyesOrigin,iEyesEndOrigin);
+	if (maxDistance < 24)
+	{
+		return false;
+	}
+	
+	new Float:vecDirection[ 3 ];
+	velocity_by_aim( iPlayer, 24, vecDirection );
+	
+	new Float:vecAimOrigin[ 3 ];
+	xs_vec_add( vecEyesOrigin, vecDirection, vecAimOrigin );
+
+	xs_vec_copy(vecEyesOrigin, newTeleportPoint);
+	
+	new i = 24;
+	while (i <= maxDistance) 
+	{
+		xs_vec_add( vecAimOrigin, vecDirection, vecAimOrigin );
+		if(!is_hull_vacant(iPlayer, vecAimOrigin, HULL_HEAD, g_pCommonTr) )
+		{
+			return true;
+		}
+		xs_vec_copy(vecAimOrigin, newTeleportPoint);
+		i+=24
+	}
+	return false;
+}
+
 
 #define TSC_Vector_MA(%1,%2,%3,%4)	(%4[0] = %2[0] * %3 + %1[0], %4[1] = %2[1] * %3 + %1[1])
 
-stock is_player_stuck(id,Float:originF[3])
+stock bool:is_hull_vacant(id, Float:origin[3], iHull, g_pCommonTr)
 {
-	engfunc(EngFunc_TraceHull, originF, originF, 0, (pev(id, pev_flags) & FL_DUCKING) ? HULL_HEAD : HULL_HUMAN, id, 0)
+	engfunc(EngFunc_TraceHull, origin, origin, 0, iHull, id, g_pCommonTr);
 	
-	if (get_tr2(0, TR_StartSolid) || get_tr2(0, TR_AllSolid) || !get_tr2(0, TR_InOpen))
-		return true
+	if (!get_tr2(g_pCommonTr, TR_StartSolid) && !get_tr2(g_pCommonTr, TR_AllSolid) && get_tr2(g_pCommonTr, TR_InOpen))
+		return true;
 	
-	return false
+	return false;
 }
 
-
-stock is_hull_vacant(Float:origin[3], hull)
+stock bool:unstuck_player(id)
 {
-	engfunc(EngFunc_TraceHull, origin, origin, DONT_IGNORE_MONSTERS, hull, 0, 0)
+	new pCommonTr = create_tr2();
+	new bool:bSuccess = false;
+	new Float:Origin[3];
+	get_entvar(id, var_origin, Origin);
 	
-	if (!get_tr2(0, TR_StartSolid) && !get_tr2(0, TR_AllSolid) && get_tr2(0, TR_InOpen))
-		return true
-	
-	return false
-}
-
-public unstuckplayer(id)
-{
-	static Float:Origin[3]
-	pev(id, pev_origin, Origin)
-	static iHull, iSpawnPoint, i
-	iHull = (pev(id, pev_flags) & FL_DUCKING) ? HULL_HEAD : HULL_HUMAN
+	new iHull, iSpawnPoint, i;
+	iHull = (get_entvar(id, var_flags) & FL_DUCKING) ? HULL_HEAD : HULL_HUMAN;
 	
 	// fast unstuck 
-	if(is_player_stuck(id,Origin))
+	if(!is_hull_vacant(id,Origin,iHull, pCommonTr))
 	{
-		Origin[2] -= 64.0
+		Origin[2] -= 64.0;
 	}
 	else
 	{
-		engfunc(EngFunc_SetOrigin, id, Origin)	
-		return;
+		engfunc(EngFunc_SetOrigin, id, Origin);
+		free_tr2(pCommonTr);
+		return true;
 	}
-	if(is_player_stuck(id,Origin))
+	if(!is_hull_vacant(id,Origin,iHull, pCommonTr))
 	{
-		Origin[2] += 128.0
+		Origin[2] += 128.0;
 	}
 	else
 	{
-		engfunc(EngFunc_SetOrigin, id, Origin)	
-		return;
+		engfunc(EngFunc_SetOrigin, id, Origin);
+		free_tr2(pCommonTr);
+		return true;
 	}
 	
-	// slow unstuck 
-	if(is_player_stuck(id,Origin))
+	if(!is_hull_vacant(id,Origin,iHull, pCommonTr))
 	{
-		static const Float:RANDOM_OWN_PLACE[][3] =
+		new const Float:RANDOM_OWN_PLACE[][3] =
 		{
 			{ -96.5,   0.0, 0.0 },
 			{  96.5,   0.0, 0.0 },
@@ -630,62 +710,70 @@ public unstuckplayer(id)
 			{ -96.5,  96.5, 0.0 },
 			{  96.5,  96.5, 0.0 },
 			{  96.5, -96.5, 0.0 }
-		}
+		};
 		
-		new Float:flOrigin[3], Float:flOriginFinal[3], iSize
-		pev(id, pev_origin, flOrigin)
-		iSize = sizeof(RANDOM_OWN_PLACE)
+		new Float:flOrigin[3], Float:flOriginFinal[3], iSize;
+		get_entvar(id, var_origin, flOrigin);
+		iSize = sizeof(RANDOM_OWN_PLACE);
 		
-		iSpawnPoint = random_num(0, iSize - 1)
+		iSpawnPoint = random_num(0, iSize - 1);
 		
 		for (i = iSpawnPoint + 1; /*no condition*/; i++)
 		{
 			if (i >= iSize)
-				i = 0
+				i = 0;
 			
-			flOriginFinal[0] = flOrigin[0] + RANDOM_OWN_PLACE[i][0]
-			flOriginFinal[1] = flOrigin[1] + RANDOM_OWN_PLACE[i][1]
-			flOriginFinal[2] = flOrigin[2]
+			flOriginFinal[0] = flOrigin[0] + RANDOM_OWN_PLACE[i][0];
+			flOriginFinal[1] = flOrigin[1] + RANDOM_OWN_PLACE[i][1];
+			flOriginFinal[2] = flOrigin[2];
 			
-			engfunc(EngFunc_TraceLine, flOrigin, flOriginFinal, IGNORE_MONSTERS, id, 0)
+			engfunc(EngFunc_TraceLine, flOrigin, flOriginFinal, IGNORE_MONSTERS, id, 0);
 			
-			new Float:flFraction
-			get_tr2(0, TR_flFraction, flFraction)
+			new Float:flFraction;
+			get_tr2(0, TR_flFraction, flFraction);
 			if (flFraction < 1.0)
 			{
-				new Float:vTraceEnd[3], Float:vNormal[3]
-				get_tr2(0, TR_vecEndPos, vTraceEnd)
-				get_tr2(0, TR_vecPlaneNormal, vNormal)
+				new Float:vTraceEnd[3], Float:vNormal[3];
+				get_tr2(0, TR_vecEndPos, vTraceEnd);
+				get_tr2(0, TR_vecPlaneNormal, vNormal);
 				
-				TSC_Vector_MA(vTraceEnd, vNormal, 32.5, flOriginFinal)
+				TSC_Vector_MA(vTraceEnd, vNormal, 32.5, flOriginFinal);
 			}
-			flOriginFinal[2] -= 35.0
+			flOriginFinal[2] -= 35.0;
 			
-			new iZ = 0
+			new iZ = 0;
 			do
 			{
-				if (is_hull_vacant(flOriginFinal, iHull))
+				if (is_hull_vacant(id, flOriginFinal, iHull, pCommonTr))
 				{
-					i = iSpawnPoint
-					engfunc(EngFunc_SetOrigin, id, flOriginFinal)
-					break
+					i = iSpawnPoint;
+					engfunc(EngFunc_SetOrigin, id, flOriginFinal);
+					bSuccess = true;
+					break;
 				}
 				
-				flOriginFinal[2] += 40.0
+				flOriginFinal[2] += 40.0;
 			}
 			while (++iZ <= 2)
 			
 			if (i == iSpawnPoint)
-				break
+				break;
 		}
 	}
 	else
 	{
-		engfunc(EngFunc_SetOrigin, id, Origin)	
+		engfunc(EngFunc_SetOrigin, id, Origin);
+		free_tr2(pCommonTr);
+		return true;
 	}
+	
+	free_tr2(pCommonTr);
+	return bSuccess;
 }
 
-public bool:is_bad_aiming(id)
+
+
+stock bool:is_bad_aiming(id)
 {
 	new target[3]
 	new Float:target_flt[3]
@@ -700,16 +788,16 @@ public bool:is_bad_aiming(id)
 	return false
 }
 
-stock get_godseekers()
+stock rg_set_rendering(const id, const iRenderFx, const R, const G, const B, const iRenderMode, const iRenderAmount)
 {
-	new godseekers = 0;
-	for(new i = 1; i <= MaxClients; i++)
-	{
-		if(g_bGodSeekerActivated[i])
-		{
-			godseekers++;
-		}
-	}
+    new Float:flRenderColor[3];
 
-	return godseekers;
+    flRenderColor[0] = float(R);
+    flRenderColor[1] = float(G);
+    flRenderColor[2] = float(B);
+
+    set_entvar(id, var_renderfx, iRenderFx);
+    set_entvar(id, var_rendercolor, flRenderColor);
+    set_entvar(id, var_rendermode, iRenderMode);
+    set_entvar(id, var_renderamt, float(iRenderAmount));
 }
