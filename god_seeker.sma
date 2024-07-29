@@ -338,8 +338,8 @@ public seeker_menu(id, vmenu, item)
 		}
 		case 6:
 		{
-			if (g_bGodSeekerActivated[id])
-				disable_god_seeker(id);
+			disable_god_seeker(id);
+			rg_give_item(id, "weapon_knife");
 		}
 	}
 	menu_destroy(vmenu)
@@ -359,7 +359,8 @@ public give_me_god(id)
 		}
 		else 
 		{
-			disable_god_seeker(id)
+			disable_god_seeker(id);
+			rg_give_item(id, "weapon_knife");
 		}
 	}
 }
