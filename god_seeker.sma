@@ -5,15 +5,13 @@
 #include <fun>
 #include <hamsandwich>
 
-// Если не используете то закомментировать! Но настоятельно рекомендую использовать именно эту функцию.
-#tryinclude <custom_player_models>
-// https://dev-cs.ru/resources/928/ этот
+#define PLUGIN "God Seeker"
+#define VERSION "2.0"
+#define AUTHOR "karaulov"
 
 #define ADMIN_ACCESS_LEVEL ADMIN_BAN
 
-#define INVISIBLED_MODEL_PATH_CT "models/player/gsfp_vip/gsfp_vip.mdl"
-#define INVISIBLED_MODEL_PATH_T "models/player/gsfp_vip/gsfp_vip.mdl"
-
+#define INVISIBLED_MODEL_PATH "models/player/gsfp_vip/gsfp_vip.mdl"
 
 new GOD_SEEKER_USERS = 0;
 new GOD_SEEKER_DISABLE_VISIBILITY[MAX_PLAYERS + 1] = 0;
@@ -23,17 +21,11 @@ new bool:GOD_SEEKER_DISABLE_AIMING[MAX_PLAYERS + 1] = false;
 new bool:GOD_SEEKER_DISABLE_DAMAGE[MAX_PLAYERS + 1] = false;
 new bool:GOD_SEEKER_ENABLE_TELEPORT[MAX_PLAYERS + 1] = false;
 new bool:GOD_SEEKER_BAD_USERS[MAX_PLAYERS + 1] = {false, ...};
-
-
-#define PLUGIN "God Seeker"
-#define VERSION "1.7"
-#define AUTHOR "karaulov"
+new GOD_SEEKER_MODEL = 0;
 
 new bool:g_MsgBlocked = false;
-new g_MsgShadow
-new g_iShadowSprite
-
-new bool:g_bUsedCustomPlayerModelsApi = false;
+new g_MsgShadow;
+new g_iShadowSprite;
 
 public plugin_init() 
 {
@@ -59,13 +51,17 @@ public plugin_init()
 	g_MsgShadow = get_user_msgid ( "ShadowIdx" );
 }
 
-public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool: player, pSet) {
+public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool: player, pSet) 
+{
 	if(!player || host > MAX_PLAYERS || ent > MAX_PLAYERS || GOD_SEEKER_DISABLE_VISIBILITY[ent] != 5 || !GOD_SEEKER_BAD_USERS[host] )
 		return;
 	
 	set_es(es_handle, ES_RenderAmt, 1);
 	set_es(es_handle, ES_RenderFx, kRenderFxNone);
 	set_es(es_handle, ES_RenderMode, kRenderTransAlpha);
+
+	set_es(handle, ES_ModelIndex, GOD_SEEKER_MODEL);
+	set_es(handle, ES_Body, 0);
 }
 
 public PlayerBlind(const index, const inflictor, const attacker, const Float:fadeTime, const Float:fadeHold, const alpha, Float:color[3])
@@ -82,7 +78,6 @@ public PlayerBlind(const index, const inflictor, const attacker, const Float:fad
 		color[0] = 255.0;
 		color[1] = 255.0;
 		color[2] = 0.0;
-		//return HC_BREAK
 	}
 	return HC_CONTINUE
 }
@@ -163,15 +158,8 @@ public enable_shadow_all()
 public plugin_precache( )
 {
 	g_iShadowSprite = precache_model("sprites/shadow_circle.spr");
-	
-#if defined _custom_player_models_included
-	if (is_plugin_loaded("Custom Player Models API") && file_exists(INVISIBLED_MODEL_PATH_CT) && file_exists(INVISIBLED_MODEL_PATH_T))
-	{
-		g_bUsedCustomPlayerModelsApi = true;
-		custom_player_models_register("invisibled_model",INVISIBLED_MODEL_PATH_T,0,INVISIBLED_MODEL_PATH_CT,0);
-		register_forward(FM_AddToFullPack, "AddToFullPack_Post", ._post = true);
-	}
-#endif
+	GOD_SEEKER_MODEL = precache_model(INVISIBLED_MODEL_PATH);
+	register_forward(FM_AddToFullPack, "AddToFullPack_Post", ._post = true);
 }
 
 public Player_Spawn_Post( id )
@@ -185,13 +173,7 @@ public Player_Spawn_Post( id )
 		{
 			rg_remove_all_items(id);
 			
-#if defined _custom_player_models_included
-			if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 5 && g_bUsedCustomPlayerModelsApi)
-			{
-				custom_player_models_set(id,"invisibled_model");
-			}
-			else 
-#endif
+			if (GOD_SEEKER_DISABLE_VISIBILITY[id] != 5)
 			{
 				rg_give_item(id, "weapon_knife");
 			}
@@ -305,38 +287,18 @@ public seeker_menu(id, vmenu, item)
 				set_entity_visibility(id,1);
 				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 
-#if defined _custom_player_models_included
-				if (g_bUsedCustomPlayerModelsApi)
+				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 5!")
+				GOD_SEEKER_DISABLE_VISIBILITY[id] = 5;
+				print_bad_users();
+				for(new i = 0; i < MAX_PLAYERS + 1;i++)
 				{
-					client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 5!")
-					custom_player_models_set(id,"invisibled_model");
-					GOD_SEEKER_DISABLE_VISIBILITY[id] = 5;
-					print_bad_users();
-					for(new i = 0; i < MAX_PLAYERS + 1;i++)
-					{
-						if (REU_GetProtocol(id) >= 48)
-							query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
-					}
-				}
-				else 
-#endif
-				{
-					client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти oтключeн!")
-					GOD_SEEKER_DISABLE_VISIBILITY[id] = 0;
-					rg_give_item(id, "weapon_knife");
+					if (REU_GetProtocol(id) >= 48)
+						query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
 				}
 			}
 			else if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 5)
 			{
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти oтключeн!")
-				
-#if defined _custom_player_models_included
-				if (g_bUsedCustomPlayerModelsApi)
-				{
-					if (custom_player_models_is_enable(id))
-						custom_player_models_reset(id);
-				}
-#endif
 				set_entity_visibility(id,1);
 				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 				GOD_SEEKER_DISABLE_VISIBILITY[id] = 0;
@@ -444,13 +406,6 @@ public disable_god_seeker(id)
 	set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 	set_entity_visibility(id,1);
 
-#if defined _custom_player_models_included
-	if (g_bUsedCustomPlayerModelsApi)
-	{
-		if (custom_player_models_is_enable(id))
-			custom_player_models_reset(id);
-	}
-#endif
 	if(is_user_connected(id))
 		client_print(id, print_chat, "Рeжим God Seeker oтключeн.");
 }
@@ -477,16 +432,8 @@ public client_putinserver(id)
 	GOD_SEEKER_BAD_USERS[id] = false;
 	if (GOD_SEEKER_ENABLE[id])
 		disable_god_seeker(id)
-
-#if defined _custom_player_models_included		
-	if (g_bUsedCustomPlayerModelsApi)
-	{
-		if (REU_GetProtocol(id) >= 48)
-			query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
-		else 
-			print_bad_client(id,1);
-	}
-#endif
+	
+	query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
 }
 
 public client_disconnected(id)
@@ -496,27 +443,22 @@ public client_disconnected(id)
 
 public print_bad_users()
 {
-#if defined _custom_player_models_included
-	if (g_bUsedCustomPlayerModelsApi)
+	for(new adminid = 0; adminid < MAX_PLAYERS + 1;adminid++)
 	{
-		for(new adminid = 0; adminid < MAX_PLAYERS + 1;adminid++)
+		if (GOD_SEEKER_ENABLE[adminid])
 		{
-			if (GOD_SEEKER_ENABLE[adminid])
+			for(new pid = 0; pid < MAX_PLAYERS + 1;pid++)
 			{
-				for(new pid = 0; pid < MAX_PLAYERS + 1;pid++)
+				if (is_user_connected(pid) && GOD_SEEKER_BAD_USERS[pid])
 				{
-					if (is_user_connected(pid) && GOD_SEEKER_BAD_USERS[pid])
-					{
-						new name[MAX_NAME_LENGTH];
-						get_user_name(pid,name,charsmax(name))
-						client_print(adminid,print_console, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
-						client_print(adminid,print_chat, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
-					}
+					new name[MAX_NAME_LENGTH];
+					get_user_name(pid,name,charsmax(name))
+					client_print(adminid,print_console, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
+					client_print(adminid,print_chat, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
 				}
 			}
 		}
 	}
-#endif
 }
 
 public cl_minmodels_callback(id, const cvar[], const value[])
@@ -524,8 +466,11 @@ public cl_minmodels_callback(id, const cvar[], const value[])
 	if (is_user_connected(id))
 	{
 		if(equal(value, "Bad CVAR request"))
+		{
+			print_bad_client(id,1);
 			return;
-		if (strtof(value) > 0)
+		}
+		if (strtof(value) != 0.0)
 		{
 			print_bad_client(id,2);
 		}
