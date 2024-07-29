@@ -13,19 +13,20 @@
 
 #define INVISIBLED_MODEL_PATH "models/player/gsfp_vip/gsfp_vip.mdl"
 
-new GOD_SEEKER_USERS = 0;
-new GOD_SEEKER_DISABLE_VISIBILITY[MAX_PLAYERS + 1] = 0;
-new bool:GOD_SEEKER_ENABLE[MAX_PLAYERS + 1] = false;
-new bool:GOD_SEEKER_DISABLE_SOUNDS[MAX_PLAYERS + 1] = false;
-new bool:GOD_SEEKER_DISABLE_AIMING[MAX_PLAYERS + 1] = false;
-new bool:GOD_SEEKER_DISABLE_DAMAGE[MAX_PLAYERS + 1] = false;
-new bool:GOD_SEEKER_ENABLE_TELEPORT[MAX_PLAYERS + 1] = false;
-new bool:GOD_SEEKER_BAD_USERS[MAX_PLAYERS + 1] = {false, ...};
-new GOD_SEEKER_MODEL = 0;
-
-new bool:g_MsgBlocked = false;
-new g_MsgShadow;
+new g_iModelInvis = 0;
+new g_iMsgShadow;
 new g_iShadowSprite;
+new g_iGodSeekerUsers = 0;
+new g_iGodSeekerInvisMode[MAX_PLAYERS + 1] = 0;
+
+new bool:g_bGodSeekerActivated[MAX_PLAYERS + 1] = false;
+new bool:g_bGodSeekerDisableSounds[MAX_PLAYERS + 1] = false;
+new bool:g_bGodSeekerDisableUsername[MAX_PLAYERS + 1] = false;
+new bool:g_bGodSeekerDisableDamage[MAX_PLAYERS + 1] = false;
+new bool:g_bGodSeekerKnifeTeleport[MAX_PLAYERS + 1] = false;
+new bool:g_bBadClients[MAX_PLAYERS + 1] = {false, ...};
+new bool:g_bBlockShadowMsg = false;
+
 
 public plugin_init() 
 {
@@ -48,25 +49,25 @@ public plugin_init()
 	register_message(get_user_msgid("StatusValue"), "message_statusvalue")
 	RegisterHookChain(RG_CBasePlayer_Spawn, "Player_Spawn_Post", .post = true)
 	
-	g_MsgShadow = get_user_msgid ( "ShadowIdx" );
+	g_iMsgShadow = get_user_msgid ( "ShadowIdx" );
 }
 
 public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool: player, pSet) 
 {
-	if(!player || host > MAX_PLAYERS || ent > MAX_PLAYERS || GOD_SEEKER_DISABLE_VISIBILITY[ent] != 5 || !GOD_SEEKER_BAD_USERS[host] )
+	if(!player || host > MaxClients || ent > MaxClients || g_iGodSeekerInvisMode[ent] != 5 || !g_bBadClients[host] )
 		return;
 	
 	set_es(es_handle, ES_RenderAmt, 1);
 	set_es(es_handle, ES_RenderFx, kRenderFxNone);
 	set_es(es_handle, ES_RenderMode, kRenderTransAlpha);
 
-	set_es(es_handle, ES_ModelIndex, GOD_SEEKER_MODEL);
+	set_es(es_handle, ES_ModelIndex, g_iModelInvis);
 	set_es(es_handle, ES_Body, 0);
 }
 
 public PlayerBlind(const index, const inflictor, const attacker, const Float:fadeTime, const Float:fadeHold, const alpha, Float:color[3])
 {
-	if (is_user_alive(index) && GOD_SEEKER_ENABLE[index])
+	if (is_user_alive(index) && g_bGodSeekerActivated[index])
 	{	
 		client_print_color(index, index, "^3Ты в peжимe ^4GOD SEEKER^3 пo этoму тeбя нe ocлeпилo!")
 		set_member(index, m_blindAlpha, 0);
@@ -84,9 +85,9 @@ public PlayerBlind(const index, const inflictor, const attacker, const Float:fad
 
 public AddItem(id, pItem)
 {
-	if (is_user_alive(id) && GOD_SEEKER_DISABLE_VISIBILITY[id] != 0)
+	if (is_user_alive(id) && g_iGodSeekerInvisMode[id] != 0)
 	{
-		if ( get_member(pItem, m_iId) == WEAPON_KNIFE && GOD_SEEKER_DISABLE_VISIBILITY[id] != 5)
+		if ( get_member(pItem, m_iId) == WEAPON_KNIFE && g_iGodSeekerInvisMode[id] != 5)
 		{
 			return HC_CONTINUE;
 		}
@@ -98,7 +99,7 @@ public AddItem(id, pItem)
 
 public BuyWeaponByWeaponID(id, WeaponIdType:weaponID)
 {
-	if (is_user_alive(id) && GOD_SEEKER_DISABLE_VISIBILITY[id] != 0)
+	if (is_user_alive(id) && g_iGodSeekerInvisMode[id] != 0)
 	{
 		SetHookChainArg(2,ATYPE_INTEGER,0)
 		SetHookChainReturn(ATYPE_INTEGER,0)
@@ -109,31 +110,31 @@ public BuyWeaponByWeaponID(id, WeaponIdType:weaponID)
 
 public enable_shadow(id)
 {
-	if (g_MsgBlocked)
+	if (g_bBlockShadowMsg)
 	{
-		set_msg_block(g_MsgShadow, BLOCK_NOT);
+		set_msg_block(g_iMsgShadow, BLOCK_NOT);
 	}
-	message_begin ( MSG_ONE_UNRELIABLE, g_MsgShadow, _, id );
+	message_begin ( MSG_ONE_UNRELIABLE, g_iMsgShadow, _, id );
 	write_long ( g_iShadowSprite );
 	message_end ();
-	if (g_MsgBlocked)
+	if (g_bBlockShadowMsg)
 	{
-		set_msg_block(g_MsgShadow, BLOCK_SET);
+		set_msg_block(g_iMsgShadow, BLOCK_SET);
 	}
 }
 
 public disable_shadow(id)
 { 
-	if (g_MsgBlocked)
+	if (g_bBlockShadowMsg)
 	{
-		set_msg_block(g_MsgShadow, BLOCK_NOT);
+		set_msg_block(g_iMsgShadow, BLOCK_NOT);
 	}
-	message_begin ( MSG_ONE_UNRELIABLE, g_MsgShadow, _, id );
+	message_begin ( MSG_ONE_UNRELIABLE, g_iMsgShadow, _, id );
 	write_long ( 0 );
 	message_end ();
-	if (g_MsgBlocked)
+	if (g_bBlockShadowMsg)
 	{
-		set_msg_block(g_MsgShadow, BLOCK_SET);
+		set_msg_block(g_iMsgShadow, BLOCK_SET);
 	}
 }
 
@@ -158,7 +159,7 @@ public enable_shadow_all()
 public plugin_precache( )
 {
 	g_iShadowSprite = precache_model("sprites/shadow_circle.spr");
-	GOD_SEEKER_MODEL = precache_model(INVISIBLED_MODEL_PATH);
+	g_iModelInvis = precache_model(INVISIBLED_MODEL_PATH);
 	register_forward(FM_AddToFullPack, "AddToFullPack_Post", ._post = true);
 }
 
@@ -167,13 +168,13 @@ public Player_Spawn_Post( id )
 	if (is_user_alive(id))
 	{
 		set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
-		if (GOD_SEEKER_USERS > 0)
+		if (g_iGodSeekerUsers > 0)
 			disable_shadow(id)
-		if (GOD_SEEKER_ENABLE[id])
+		if (g_bGodSeekerActivated[id])
 		{
 			rg_remove_all_items(id);
 			
-			if (GOD_SEEKER_DISABLE_VISIBILITY[id] != 5)
+			if (g_iGodSeekerInvisMode[id] != 5)
 			{
 				rg_give_item(id, "weapon_knife");
 			}
@@ -186,7 +187,7 @@ public CSGameRules_FPlayerCanTakeDmg(const pPlayer, const pAttacker)
 	if(!is_user_connected(pAttacker))
 		return HC_CONTINUE
 
-	if(GOD_SEEKER_DISABLE_DAMAGE[pPlayer])
+	if(g_bGodSeekerDisableDamage[pPlayer])
 	{
 		SetHookChainReturn(ATYPE_INTEGER, false)
 		return HC_SUPERCEDE
@@ -197,7 +198,7 @@ public CSGameRules_FPlayerCanTakeDmg(const pPlayer, const pAttacker)
 
 public show_seeker_menu(id)
 {
-	if (!GOD_SEEKER_ENABLE[id])
+	if (!g_bGodSeekerActivated[id])
 	{
 		client_print(id, print_chat, "Рeжим God Seeker oтключeн.");
 		return PLUGIN_HANDLED;
@@ -210,21 +211,21 @@ public show_seeker_menu(id)
 	new vmenu = menu_create(tmpmenuitem, "seeker_menu")
 
 	format(tmpmenuitem,127,"\wНeвидимocть [\r%s\w]", 
-	GOD_SEEKER_DISABLE_VISIBILITY[id] == 0 ? "ОТКЛЮЧЕНА" :
-	(GOD_SEEKER_DISABLE_VISIBILITY[id] == 1 ? "НЕВИДИМОСТЬ 1" : 
-	(GOD_SEEKER_DISABLE_VISIBILITY[id] == 2 ? "НЕВИДИМОСТЬ 2" : 
-	(GOD_SEEKER_DISABLE_VISIBILITY[id] == 3 ? "НЕВИДИМОСТЬ 3" : 
-	(GOD_SEEKER_DISABLE_VISIBILITY[id] == 4 ? "НЕВИДИМОСТЬ 4" : 
-	(GOD_SEEKER_DISABLE_VISIBILITY[id] == 5 ? "ПРОЗРАЧНАЯ МОДЕЛЬ" 
+	g_iGodSeekerInvisMode[id] == 0 ? "ОТКЛЮЧЕНА" :
+	(g_iGodSeekerInvisMode[id] == 1 ? "НЕВИДИМОСТЬ 1" : 
+	(g_iGodSeekerInvisMode[id] == 2 ? "НЕВИДИМОСТЬ 2" : 
+	(g_iGodSeekerInvisMode[id] == 3 ? "НЕВИДИМОСТЬ 3" : 
+	(g_iGodSeekerInvisMode[id] == 4 ? "НЕВИДИМОСТЬ 4" : 
+	(g_iGodSeekerInvisMode[id] == 5 ? "ПРОЗРАЧНАЯ МОДЕЛЬ" 
 	: "ОТКЛЮЧЕНА" ))))));
 	menu_additem(vmenu, tmpmenuitem,"1")
-	format(tmpmenuitem,127,"\wЗвуки [\r%s\w]", GOD_SEEKER_DISABLE_SOUNDS[id] ? "НЕ СЛЫШНЫ" : "СЛЫШНЫ");
+	format(tmpmenuitem,127,"\wЗвуки [\r%s\w]", g_bGodSeekerDisableSounds[id] ? "НЕ СЛЫШНЫ" : "СЛЫШНЫ");
 	menu_additem(vmenu, tmpmenuitem,"2")
-	format(tmpmenuitem,127,"\wНикнeйм [\r%s\w]", GOD_SEEKER_DISABLE_AIMING[id] ? "НЕВИДИМЫЙ" : "ОТОБРАЖАТЬ");
+	format(tmpmenuitem,127,"\wНикнeйм [\r%s\w]", g_bGodSeekerDisableUsername[id] ? "НЕВИДИМЫЙ" : "ОТОБРАЖАТЬ");
 	menu_additem(vmenu, tmpmenuitem,"3")
-	format(tmpmenuitem,127,"\wУpoн [\r%s\w]", GOD_SEEKER_DISABLE_DAMAGE[id] ? "БЕССМЕРТНЫЙ" : "ПОЛУЧАТЬ");
+	format(tmpmenuitem,127,"\wУpoн [\r%s\w]", g_bGodSeekerDisableDamage[id] ? "БЕССМЕРТНЫЙ" : "ПОЛУЧАТЬ");
 	menu_additem(vmenu, tmpmenuitem,"4")
-	format(tmpmenuitem,127,"\wТeлeпopт нoжoм [\r%s\w]", GOD_SEEKER_ENABLE_TELEPORT[id] ? "АКТИВИРОВАН" : "ОТКЛЮЧЕН");
+	format(tmpmenuitem,127,"\wТeлeпopт нoжoм [\r%s\w]", g_bGodSeekerKnifeTeleport[id] ? "АКТИВИРОВАН" : "ОТКЛЮЧЕН");
 	menu_additem(vmenu, tmpmenuitem,"5")
 	format(tmpmenuitem,127,"\wВыключить");
 	menu_additem(vmenu, tmpmenuitem,"6")
@@ -258,57 +259,57 @@ public seeker_menu(id, vmenu, item)
 		case 1:
 		{
 			rg_remove_all_items(id);
-			if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 1)
+			if (g_iGodSeekerInvisMode[id] == 1)
 			{
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 2! Внимание тебя видно в дыму!")
 				
 				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1)
-				GOD_SEEKER_DISABLE_VISIBILITY[id] = 2;
+				g_iGodSeekerInvisMode[id] = 2;
 				rg_give_item(id, "weapon_knife");
 			}
-			else if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 2)
+			else if (g_iGodSeekerInvisMode[id] == 2)
 			{	
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 3!")
 				
 				set_user_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1)
-				GOD_SEEKER_DISABLE_VISIBILITY[id] = 3;
+				g_iGodSeekerInvisMode[id] = 3;
 				rg_give_item(id, "weapon_knife");
 			}
-			else if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 3)
+			else if (g_iGodSeekerInvisMode[id] == 3)
 			{
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 4!")
 				set_entity_visibility(id,0);
 				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
-				GOD_SEEKER_DISABLE_VISIBILITY[id] = 4;
+				g_iGodSeekerInvisMode[id] = 4;
 				rg_give_item(id, "weapon_knife");
 			}
-			else if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 4)
+			else if (g_iGodSeekerInvisMode[id] == 4)
 			{
 				set_entity_visibility(id,1);
 				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 5!")
-				GOD_SEEKER_DISABLE_VISIBILITY[id] = 5;
+				g_iGodSeekerInvisMode[id] = 5;
 				print_bad_users();
-				for(new i = 0; i < MAX_PLAYERS + 1;i++)
+				for(new i = 0; i <= MaxClients;i++)
 				{
 					if (REU_GetProtocol(id) >= 48)
 						query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
 				}
 			}
-			else if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 5)
+			else if (g_iGodSeekerInvisMode[id] == 5)
 			{
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти oтключeн!")
 				set_entity_visibility(id,1);
 				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
-				GOD_SEEKER_DISABLE_VISIBILITY[id] = 0;
+				g_iGodSeekerInvisMode[id] = 0;
 				rg_give_item(id, "weapon_knife");
 			}
 			else 
 			{
 				client_print(id,print_chat, "[God seeker] Рeжим нeвидимocти 1!")
 				set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0)
-				GOD_SEEKER_DISABLE_VISIBILITY[id] = 1;
+				g_iGodSeekerInvisMode[id] = 1;
 				rg_give_item(id, "weapon_knife");
 			}
 			
@@ -317,27 +318,27 @@ public seeker_menu(id, vmenu, item)
 		}
 		case 2:
 		{
-			GOD_SEEKER_DISABLE_SOUNDS[id] = !GOD_SEEKER_DISABLE_SOUNDS[id];
+			g_bGodSeekerDisableSounds[id] = !g_bGodSeekerDisableSounds[id];
 			show_seeker_menu(id);
 		}
 		case 3:
 		{
-			GOD_SEEKER_DISABLE_AIMING[id] = !GOD_SEEKER_DISABLE_AIMING[id];
+			g_bGodSeekerDisableUsername[id] = !g_bGodSeekerDisableUsername[id];
 			show_seeker_menu(id);
 		}
 		case 4:
 		{
-			GOD_SEEKER_DISABLE_DAMAGE[id] = !GOD_SEEKER_DISABLE_DAMAGE[id];
+			g_bGodSeekerDisableDamage[id] = !g_bGodSeekerDisableDamage[id];
 			show_seeker_menu(id);
 		}
 		case 5:
 		{
-			GOD_SEEKER_ENABLE_TELEPORT[id] = !GOD_SEEKER_ENABLE_TELEPORT[id];
+			g_bGodSeekerKnifeTeleport[id] = !g_bGodSeekerKnifeTeleport[id];
 			show_seeker_menu(id);
 		}
 		case 6:
 		{
-			if (GOD_SEEKER_ENABLE[id])
+			if (g_bGodSeekerActivated[id])
 				disable_god_seeker(id);
 		}
 	}
@@ -347,10 +348,10 @@ public seeker_menu(id, vmenu, item)
 
 public give_me_god(id)
 {
-	if (get_user_flags(id) & ADMIN_ACCESS_LEVEL)
+	if (ADMIN_ACCESS_LEVEL == ADMIN_ALL || get_user_flags(id) & ADMIN_ACCESS_LEVEL)
 	{
-		GOD_SEEKER_ENABLE[id] = !GOD_SEEKER_ENABLE[id];
-		if (GOD_SEEKER_ENABLE[id])
+		g_bGodSeekerActivated[id] = !g_bGodSeekerActivated[id];
+		if (g_bGodSeekerActivated[id])
 		{
 			rg_remove_all_items(id);
 			rg_give_item(id, "weapon_knife");
@@ -373,36 +374,36 @@ public enable_god_seeker(id)
 		client_print(id, print_chat, "[God seeker] Тeпepь ты в peжимe God seeker. Нacтpoйки /godmenu");
 		print_bad_users();
 	}
-	if (GOD_SEEKER_USERS == 0)
+	if (g_iGodSeekerUsers == 0)
 	{
-		g_MsgBlocked = true;
-		set_msg_block(g_MsgShadow, BLOCK_SET);
+		g_bBlockShadowMsg = true;
+		set_msg_block(g_iMsgShadow, BLOCK_SET);
 		disable_shadow_all();
 	}
-	GOD_SEEKER_USERS++;
-	GOD_SEEKER_ENABLE[id] = true;
-	GOD_SEEKER_ENABLE_TELEPORT[id] = true;
-	GOD_SEEKER_DISABLE_DAMAGE[id] = true;
-	GOD_SEEKER_DISABLE_SOUNDS[id] = true;
-	GOD_SEEKER_DISABLE_AIMING[id] = true;
-	GOD_SEEKER_DISABLE_VISIBILITY[id] = 1;
+	g_iGodSeekerUsers++;
+	g_bGodSeekerActivated[id] = true;
+	g_bGodSeekerKnifeTeleport[id] = true;
+	g_bGodSeekerDisableDamage[id] = true;
+	g_bGodSeekerDisableSounds[id] = true;
+	g_bGodSeekerDisableUsername[id] = true;
+	g_iGodSeekerInvisMode[id] = 1;
 }
 
 public disable_god_seeker(id)
 {
-	if (GOD_SEEKER_USERS > 0)
+	if (g_iGodSeekerUsers > 0)
 	{
-		g_MsgBlocked = false;
+		g_bBlockShadowMsg = false;
 		enable_shadow_all();
-		set_msg_block(g_MsgShadow, BLOCK_NOT);
+		set_msg_block(g_iMsgShadow, BLOCK_NOT);
 	}
-	GOD_SEEKER_USERS--;
-	GOD_SEEKER_ENABLE[id] = false;
-	GOD_SEEKER_ENABLE_TELEPORT[id] = false;
-	GOD_SEEKER_DISABLE_DAMAGE[id] = false;
-	GOD_SEEKER_DISABLE_SOUNDS[id] = false;
-	GOD_SEEKER_DISABLE_AIMING[id] = false;
-	GOD_SEEKER_DISABLE_VISIBILITY[id] = 0;
+	g_iGodSeekerUsers--;
+	g_bGodSeekerActivated[id] = false;
+	g_bGodSeekerKnifeTeleport[id] = false;
+	g_bGodSeekerDisableDamage[id] = false;
+	g_bGodSeekerDisableSounds[id] = false;
+	g_bGodSeekerDisableUsername[id] = false;
+	g_iGodSeekerInvisMode[id] = 0;
 	set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 	set_entity_visibility(id,1);
 
@@ -412,49 +413,52 @@ public disable_god_seeker(id)
 
 public print_bad_client(id, type)
 {
-	GOD_SEEKER_BAD_USERS[id] = true;
+	g_bBadClients[id] = true;
 	
-	for(new adminid = 0; adminid < MAX_PLAYERS + 1;adminid++)
+	for(new iPlayer = 0; iPlayer <= MaxClients; iPlayer++)
 	{
-		if (GOD_SEEKER_ENABLE[adminid])
+		if (g_bGodSeekerActivated[iPlayer])
 		{
 			new name[MAX_NAME_LENGTH];
 			get_user_name(id,name,charsmax(name))
-			client_print(adminid,print_console, "[God seeker] Игpoк %s вoшeл %s",name, type == 1 ? "co cтapoгo клиeнтa" : "c cl_minmodels 1");
-			client_print(adminid,print_chat, "[God seeker] Игpoк %s вoшeл %s",name, type == 1 ? "co cтapoгo клиeнтa" : "c cl_minmodels 1");
-			client_print(adminid,print_chat, "[God seeker] И мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"");
+			client_print(iPlayer,print_console, "[God seeker] Игpoк %s вoшeл %s",name, type == 1 ? "co cтapoгo клиeнтa" : "c cl_minmodels 1");
+			client_print(iPlayer,print_chat, "[God seeker] Игpoк %s вoшeл %s",name, type == 1 ? "co cтapoгo клиeнтa" : "c cl_minmodels 1");
+			client_print(iPlayer,print_chat, "[God seeker] И мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"");
 		}
 	}
 }
 
 public client_putinserver(id)
 {
-	GOD_SEEKER_BAD_USERS[id] = false;
-	if (GOD_SEEKER_ENABLE[id])
+	g_bBadClients[id] = false;
+
+	if (g_bGodSeekerActivated[id])
 		disable_god_seeker(id)
-	
-	query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
+	if (!is_user_bot(id) && !is_user_hltv(id))
+	{
+		query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
+	}
 }
 
 public client_disconnected(id)
 {
-	GOD_SEEKER_BAD_USERS[id] = false;
+	g_bBadClients[id] = false;
 }
 
 public print_bad_users()
 {
-	for(new adminid = 0; adminid < MAX_PLAYERS + 1;adminid++)
+	for(new iPlayer = 0; iPlayer <= MaxClients; iPlayer++)
 	{
-		if (GOD_SEEKER_ENABLE[adminid])
+		if (is_user_connected(iPlayer) && g_bGodSeekerActivated[iPlayer])
 		{
-			for(new pid = 0; pid < MAX_PLAYERS + 1;pid++)
+			for(new pid = 0; pid <= MaxClients;pid++)
 			{
-				if (is_user_connected(pid) && GOD_SEEKER_BAD_USERS[pid])
+				if (is_user_connected(pid) && g_bBadClients[pid])
 				{
 					new name[MAX_NAME_LENGTH];
 					get_user_name(pid,name,charsmax(name))
-					client_print(adminid,print_console, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
-					client_print(adminid,print_chat, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
+					client_print(iPlayer,print_console, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
+					client_print(iPlayer,print_chat, "[God seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
 				}
 			}
 		}
@@ -479,7 +483,7 @@ public cl_minmodels_callback(id, const cvar[], const value[])
 
 public client_PreThink(id)
 {
-	if(GOD_SEEKER_ENABLE_TELEPORT[id])
+	if(g_bGodSeekerKnifeTeleport[id])
 	{
 		new g_Flags = entity_get_int(id,EV_INT_button)
 		if(g_Flags & IN_ATTACK && get_user_weapon(id) == CSW_KNIFE)
@@ -493,7 +497,7 @@ public client_PreThink(id)
 				teleportPlayer(id)
 				client_print(id,print_chat, "[God seeker] Ты пepeмecтилcя к цeли!")
 			}
-			GOD_SEEKER_ENABLE_TELEPORT[id] = false;
+			g_bGodSeekerKnifeTeleport[id] = false;
 			set_task(0.5,"reenable_teleport",id);
 		}
 	}
@@ -501,15 +505,15 @@ public client_PreThink(id)
 public client_PostThink(id)
 {
 	// FIXME: ReSemiclip module/plugin fix but slowest...
-	if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 1)
+	if (g_iGodSeekerInvisMode[id] == 1)
 	{
 		set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0)
 	}
-	else if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 2)
+	else if (g_iGodSeekerInvisMode[id] == 2)
 	{
 		set_user_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1)
 	}
-	else if (GOD_SEEKER_DISABLE_VISIBILITY[id] == 3)
+	else if (g_iGodSeekerInvisMode[id] == 3)
 	{
 		set_user_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1)
 	}
@@ -517,13 +521,13 @@ public client_PostThink(id)
 
 public reenable_teleport(id)
 {
-	if (GOD_SEEKER_ENABLE[id])
-		GOD_SEEKER_ENABLE_TELEPORT[id] = true;
+	if (g_bGodSeekerActivated[id])
+		g_bGodSeekerKnifeTeleport[id] = true;
 }
 
 public message_statusvalue()
 {
-	if (get_msg_arg_int(1) == 2 && GOD_SEEKER_DISABLE_AIMING[get_msg_arg_int(2)])
+	if (get_msg_arg_int(1) == 2 && g_bGodSeekerDisableUsername[get_msg_arg_int(2)])
 	{
 		set_msg_arg_int(1, get_msg_argtype(1), 1)
 		set_msg_arg_int(2, get_msg_argtype(2), 0)
@@ -532,14 +536,10 @@ public message_statusvalue()
 
 public SV_StartSound_Pre(const iRecipients, const iEntity, const iChannel, const szSample[], const flVolume, Float:flAttenuation, const fFlags, const iPitch)
 {
-	if (!iRecipients || !is_user_connected(iEntity) || !is_user_alive(iEntity))
-		return HC_CONTINUE;
-		
-	if (GOD_SEEKER_DISABLE_SOUNDS[iEntity])
+	if (iEntity > 0 && iEntity <= MaxClients && g_bGodSeekerDisableSounds[iEntity])
 	{
 		return HC_SUPERCEDE;
 	}
-
 	return HC_CONTINUE;
 }
 
