@@ -54,8 +54,6 @@ public plugin_init()
 	RegisterHookChain(RG_PlayerBlind, "PlayerBlind");
 	RegisterHookChain(RG_CBasePlayer_Spawn, "Player_Spawn_Post", .post = true);
 	RegisterHookChain(RG_CBasePlayer_PreThink, "CBasePlayer_PreThink_Post", .post = true);
-	RegisterHookChain(RG_CBasePlayer_PostThink, "CBasePlayer_PostThink_Post", .post = true);
-
 	register_forward(FM_AddToFullPack, "AddToFullPack_Post", ._post = true);
 	register_message(get_user_msgid("StatusValue"), "message_statusvalue");
 
@@ -214,33 +212,27 @@ public seeker_menu(id, vmenu, item)
 			rg_reset_user_model(id, true);
 			if (g_iGodSeekerInvisMode[id] == 1)
 			{
-				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 2! ^1Внимание тебя видно в дыму!",PLUGIN)
-				
-				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1)
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 2! ^1Внимание тебя видно в дыму!",PLUGIN);
 				g_iGodSeekerInvisMode[id] = 2;
 				rg_give_item(id, "weapon_knife");
 			}
 			else if (g_iGodSeekerInvisMode[id] == 2)
 			{	
-				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 3!",PLUGIN)
-				
-				rg_set_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1)
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 3!",PLUGIN);
 				g_iGodSeekerInvisMode[id] = 3;
 				rg_give_item(id, "weapon_knife");
 			}
 			else if (g_iGodSeekerInvisMode[id] == 3)
 			{
-				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
-				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 4! ^1[Слабый]",PLUGIN)
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 4! ^1[Слабый]",PLUGIN);
 				g_iGodSeekerInvisMode[id] = 4;
 				rg_give_item(id, "weapon_knife");
 			}
 			else if (g_iGodSeekerInvisMode[id] == 4)
 			{
-				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 				rg_set_user_model(id, INVISIBLED_MODEL_NAME, true);
 
-				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 5!",PLUGIN)
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 5!",PLUGIN);
 				g_iGodSeekerInvisMode[id] = 5;
 
 				for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
@@ -258,15 +250,13 @@ public seeker_menu(id, vmenu, item)
 			}
 			else if (g_iGodSeekerInvisMode[id] == 5)
 			{
-				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти oтключeн!",PLUGIN)
-				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти oтключeн!",PLUGIN);
 				g_iGodSeekerInvisMode[id] = 0;
 				rg_give_item(id, "weapon_knife");
 			}
 			else 
 			{
-				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 1! ^1[Слабый]",PLUGIN)
-				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0)
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 1! ^1[Слабый]",PLUGIN);
 				g_iGodSeekerInvisMode[id] = 1;
 				rg_give_item(id, "weapon_knife");
 			}
@@ -347,7 +337,6 @@ public disable_god_seeker(id)
 {
 	if(is_user_connected(id))
 	{
-		rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 		if (g_bGodSeekerActivated[id])
 		{
 			client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим ^4God Seeker^3 oтключeн.",PLUGIN);
@@ -434,29 +423,8 @@ public CBasePlayer_PreThink_Post(id)
 	}
 }
 
-public CBasePlayer_PostThink_Post(id)
-{
-	// FIXME: ReSemiclip module/plugin fix but slowest...
-	if (g_bGodSeekerActivated[id])
-	{
-		if (g_iGodSeekerInvisMode[id] == 1)
-		{
-			rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0);
-		}
-		else if (g_iGodSeekerInvisMode[id] == 2)
-		{
-			rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1);
-		}
-		else if (g_iGodSeekerInvisMode[id] == 3)
-		{
-			rg_set_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1);
-		}
-	}
-}
-
 public Player_Spawn_Post(id)
 {
-	rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 	if (g_bGodSeekerActivated[id])
 	{
 		disable_god_seeker(id);
@@ -481,8 +449,8 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet)
 		{
 			set_es(es_handle, ES_RenderFx, kRenderFxNone);
 			set_es(es_handle, ES_RenderMode, kRenderNormal);
-			set_es(es_handle, ES_RenderAmt, 254);
-			set_es(es_handle, ES_RenderColor, {254,254,254});
+			set_es(es_handle, ES_RenderAmt, 255);
+			set_es(es_handle, ES_RenderColor, {255,255,255});
 		}
 	}
 	else if (g_iGodSeekerInvisMode[ent] == 4)
@@ -490,6 +458,27 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet)
 		new effects = get_es(es_handle, ES_Effects);
 		if (effects & EF_NODRAW == 0)
 			set_es(es_handle, ES_Effects, effects | EF_NODRAW);
+	}
+	else if (g_iGodSeekerInvisMode[ent] == 3)
+	{
+		set_es(es_handle, ES_RenderFx, kRenderFxNone);
+		set_es(es_handle, ES_RenderMode, kRenderTransTexture);
+		set_es(es_handle, ES_RenderAmt, 1);
+		set_es(es_handle, ES_RenderColor, {1,1,1});
+	}
+	else if (g_iGodSeekerInvisMode[ent] == 2)
+	{
+		set_es(es_handle, ES_RenderFx, kRenderFxNone);
+		set_es(es_handle, ES_RenderMode, kRenderTransAlpha);
+		set_es(es_handle, ES_RenderAmt, 1);
+		set_es(es_handle, ES_RenderColor, {255,255,255});
+	}
+	else if (g_iGodSeekerInvisMode[ent] == 1)
+	{
+		set_es(es_handle, ES_RenderFx, kRenderFxNone);
+		set_es(es_handle, ES_RenderMode, kRenderTransAlpha);
+		set_es(es_handle, ES_RenderAmt, 0);
+		set_es(es_handle, ES_RenderColor, {255,255,255});
 	}
 }
 
@@ -528,7 +517,7 @@ public PlayerBlind(const index, const inflictor, const attacker, const Float:fad
 {
 	if (is_user_alive(index) && g_bGodSeekerActivated[index])
 	{	
-		client_print_color(index, print_team_blue, "^1[^4%s^1]^3Ты в peжимe ^4GOD SEEKER^3 пo этoму тeбя нe ocлeпилo!",PLUGIN)
+		client_print_color(index, print_team_blue, "^1[^4%s^1]^3Ты в peжимe ^4GOD SEEKER^3 пo этoму тeбя нe ocлeпилo!",PLUGIN);
 		set_member(index, m_blindAlpha, 0);
 		set_member(index, m_blindStartTime, 0.0);
 		set_member(index, m_blindHoldTime, 0.0);
@@ -796,21 +785,4 @@ stock bool:is_bad_aiming(id)
 		return true
 
 	return false
-}
-
-stock rg_set_rendering(const id, const iRenderFx, const R, const G, const B, const iRenderMode, const iRenderAmount)
-{
-	if (is_nullent(id))
-		return;
-
-	new Float:flRenderColor[3];
-
-	flRenderColor[0] = float(R);
-	flRenderColor[1] = float(G);
-	flRenderColor[2] = float(B);
-
-	set_entvar(id, var_renderfx, iRenderFx);
-	set_entvar(id, var_rendercolor, flRenderColor);
-	set_entvar(id, var_rendermode, iRenderMode);
-	set_entvar(id, var_renderamt, float(iRenderAmount));
 }
