@@ -435,7 +435,7 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet)
 {
 	if(!player || host > MaxClients || ent > MaxClients || !g_bGodSeekerActivated[ent])
 		return;
-	
+		
 	if (g_iGodSeekerInvisMode[ent] == 5)
 	{
 		if (g_iBadClients[host] > 0)
@@ -564,7 +564,6 @@ public reenable_teleport(id)
 
 public message_statusvalue(msg_id, msg_dest, id)
 {
-	log_amx("%d %d %d", msg_id, msg_dest, id);
 	new targetid = get_msg_arg_int(2);
 	if (get_msg_arg_int(1) == 2 && g_bGodSeekerActivated[targetid] && g_bGodSeekerDisableUsername[targetid])
 	{
