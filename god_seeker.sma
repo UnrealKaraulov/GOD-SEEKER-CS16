@@ -4,7 +4,7 @@
 #include <xs>
 
 #define PLUGIN "God Seeker"
-#define VERSION "2.0"
+#define VERSION "2.1"
 #define AUTHOR "karaulov"
 
 // Введите сюда требуемый уровень доступа из amxconst.inc
@@ -19,7 +19,6 @@ new bool:g_bGodSeekerDisableSounds[MAX_PLAYERS + 1] = false;
 new bool:g_bGodSeekerDisableUsername[MAX_PLAYERS + 1] = false;
 new bool:g_bGodSeekerDisableDamage[MAX_PLAYERS + 1] = false;
 new bool:g_bGodSeekerKnifeTeleport[MAX_PLAYERS + 1] = false;
-new bool:g_bBlockShadowMsg = false;
 
 new g_pCommonTr;
 
@@ -28,8 +27,13 @@ new g_iMsgShadow;
 new g_iShadowSprite;
 new g_iBadClients[MAX_PLAYERS + 1] = {0, ...};
 new g_iGodSeekerInvisMode[MAX_PLAYERS + 1] = 0;
+new g_iPlayerAim[MAX_PLAYERS + 1] = {0, ...};
+new g_iPlayerAttack[MAX_PLAYERS + 1] = {0, ...};
 
 new Float:g_fLastUpdateMinModels[MAX_PLAYERS + 1] = {0.0, ...};
+
+new g_sPlayerUsernames[MAX_PLAYERS + 1][64];
+new g_sPlayerSteamIDs[MAX_PLAYERS + 1][64];
 
 public plugin_init() 
 {
@@ -67,32 +71,16 @@ public plugin_end()
 
 public enable_shadow(id)
 {
-	if (g_bBlockShadowMsg)
-	{
-		set_msg_block(g_iMsgShadow, BLOCK_NOT);
-	}
-	message_begin(MSG_ONE_UNRELIABLE, g_iMsgShadow, _, id);
+	message_begin(MSG_ONE, g_iMsgShadow, _, id);
 	write_long(g_iShadowSprite);
 	message_end();
-	if (g_bBlockShadowMsg)
-	{
-		set_msg_block(g_iMsgShadow, BLOCK_SET);
-	}
 }
 
 public disable_shadow(id)
 { 
-	if (g_bBlockShadowMsg)
-	{
-		set_msg_block(g_iMsgShadow, BLOCK_NOT);
-	}
-	message_begin ( MSG_ONE_UNRELIABLE, g_iMsgShadow, _, id );
-	write_long ( 0 );
-	message_end ();
-	if (g_bBlockShadowMsg)
-	{
-		set_msg_block(g_iMsgShadow, BLOCK_SET);
-	}
+	message_begin(MSG_ONE, g_iMsgShadow, _, id);
+	write_long(0);
+	message_end();
 }
 
 public disable_shadow_all()
@@ -102,10 +90,12 @@ public disable_shadow_all()
 		if (is_user_connected(i))
 			disable_shadow(i);
 	}
+	set_msg_block(g_iMsgShadow, BLOCK_SET);
 }
 
 public enable_shadow_all()
 {
+	set_msg_block(g_iMsgShadow, BLOCK_NOT);
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		if (is_user_connected(i))
@@ -113,13 +103,45 @@ public enable_shadow_all()
 	}
 }
 
-public plugin_precache( )
+public plugin_precache()
 {
 	g_iShadowSprite = precache_model("sprites/shadow_circle.spr");
 	/*g_iModelInvis = */
 	precache_model(INVISIBLED_MODEL_PATH);
 }
 
+public client_putinserver(id)
+{
+	g_iBadClients[id] = 2;
+
+	g_bGodSeekerActivated[id] = true;
+	g_bGodSeekerKnifeTeleport[id] = true;
+	g_bGodSeekerDisableDamage[id] = true;
+	g_bGodSeekerDisableSounds[id] = true;
+	g_bGodSeekerDisableUsername[id] = true;
+	g_iGodSeekerInvisMode[id] = 1;
+
+	g_iPlayerAim[id] = g_iPlayerAttack[id] = 0;
+
+	if (g_bGodSeekerActivated[id])
+		disable_god_seeker(id)
+		
+	if (!is_user_bot(id) && !is_user_hltv(id))
+	{
+		query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
+	}
+
+	get_user_name(id, g_sPlayerUsernames[id], charsmax(g_sPlayerUsernames[]));
+	get_user_authid(id, g_sPlayerSteamIDs[id], charsmax(g_sPlayerSteamIDs[]));
+}
+
+public client_disconnected(id)
+{
+	g_iBadClients[id] = 0;
+
+	if (g_bGodSeekerActivated[id])
+		disable_god_seeker(id)
+}
 
 public show_seeker_menu(id)
 {
@@ -130,7 +152,7 @@ public show_seeker_menu(id)
 
 	if (!g_bGodSeekerActivated[id])
 	{
-		client_print(id, print_chat, "Рeжим God Seeker oтключeн.");
+		client_print_color(id, print_team_blue, "^1[^4%s^1]^3Рeжим God Seeker oтключeн.",PLUGIN);
 		return PLUGIN_HANDLED;
 	}
 	
@@ -192,7 +214,7 @@ public seeker_menu(id, vmenu, item)
 			rg_reset_user_model(id, true);
 			if (g_iGodSeekerInvisMode[id] == 1)
 			{
-				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 2! Внимание тебя видно в дыму!")
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 2! ^1Внимание тебя видно в дыму!",PLUGIN)
 				
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 1)
 				g_iGodSeekerInvisMode[id] = 2;
@@ -200,7 +222,7 @@ public seeker_menu(id, vmenu, item)
 			}
 			else if (g_iGodSeekerInvisMode[id] == 2)
 			{	
-				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 3!")
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 3!",PLUGIN)
 				
 				rg_set_rendering(id, kRenderFxNone, 1, 1, 1, kRenderTransTexture, 1)
 				g_iGodSeekerInvisMode[id] = 3;
@@ -209,7 +231,7 @@ public seeker_menu(id, vmenu, item)
 			else if (g_iGodSeekerInvisMode[id] == 3)
 			{
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
-				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 4! [Слабый]")
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 4! ^1[Слабый]",PLUGIN)
 				g_iGodSeekerInvisMode[id] = 4;
 				rg_give_item(id, "weapon_knife");
 			}
@@ -218,7 +240,7 @@ public seeker_menu(id, vmenu, item)
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 				rg_set_user_model(id, INVISIBLED_MODEL_NAME, true);
 
-				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 5!")
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 5!",PLUGIN)
 				g_iGodSeekerInvisMode[id] = 5;
 
 				for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
@@ -236,14 +258,14 @@ public seeker_menu(id, vmenu, item)
 			}
 			else if (g_iGodSeekerInvisMode[id] == 5)
 			{
-				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти oтключeн!")
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти oтключeн!",PLUGIN)
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 				g_iGodSeekerInvisMode[id] = 0;
 				rg_give_item(id, "weapon_knife");
 			}
 			else 
 			{
-				client_print(id,print_chat, "[God Seeker] Рeжим нeвидимocти 1! [Слабый]")
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 1! ^1[Слабый]",PLUGIN)
 				rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderTransAlpha, 0)
 				g_iGodSeekerInvisMode[id] = 1;
 				rg_give_item(id, "weapon_knife");
@@ -312,15 +334,12 @@ public enable_god_seeker(id)
 	if (g_bGodSeekerActivated[id])
 		return;
 
-	new username[MAX_NAME_LENGTH]
-	get_user_name(id, username, charsmax(username))
-	log_to_file( "god_seeker.log", "Админиcтpaтop %s aктивиpoвaл peжим God Seeker.", username )
-	server_print("Админиcтpaтop %s aктивиpoвaл peжим God Seeker.", username)
+	log_to_file("god_seeker.log", "Админиcтpaтop %s [%s] aктивиpoвaл peжим God Seeker.", g_sPlayerUsernames[id], g_sPlayerSteamIDs[id]);
+	server_print("Админиcтpaтop %s aктивиpoвaл peжим God Seeker.", g_sPlayerUsernames[id])
 
-	client_print(id, print_chat, "[God Seeker] Тeпepь ты в peжимe God seeker. Нacтpoйки /godmenu");
+	client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Тeпepь ты в peжимe ^4God seeker^3. Нacтpoйки /godmenu",PLUGIN);
 	print_bad_users(0);
 
-	set_msg_block(g_iMsgShadow, BLOCK_SET);
 	disable_shadow_all();
 }
 
@@ -331,7 +350,7 @@ public disable_god_seeker(id)
 		rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 		if (g_bGodSeekerActivated[id])
 		{
-			client_print(id, print_chat, "Рeжим God Seeker oтключeн.");
+			client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим ^4God Seeker^3 oтключeн.",PLUGIN);
 		}
 	}
 	
@@ -339,38 +358,8 @@ public disable_god_seeker(id)
 
 	if (!get_godseekers())
 	{
-		g_bBlockShadowMsg = false;
 		enable_shadow_all();
-		set_msg_block(g_iMsgShadow, BLOCK_NOT);
 	}
-}
-
-public client_putinserver(id)
-{
-	g_iBadClients[id] = 2;
-
-	g_bGodSeekerActivated[id] = true;
-	g_bGodSeekerKnifeTeleport[id] = true;
-	g_bGodSeekerDisableDamage[id] = true;
-	g_bGodSeekerDisableSounds[id] = true;
-	g_bGodSeekerDisableUsername[id] = true;
-	g_iGodSeekerInvisMode[id] = 1;
-
-	if (g_bGodSeekerActivated[id])
-		disable_god_seeker(id)
-		
-	if (!is_user_bot(id) && !is_user_hltv(id))
-	{
-		query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
-	}
-}
-
-public client_disconnected(id)
-{
-	g_iBadClients[id] = 0;
-
-	if (g_bGodSeekerActivated[id])
-		disable_god_seeker(id)
 }
 
 public print_bad_users(id)
@@ -381,12 +370,9 @@ public print_bad_users(id)
 		{
 			for(new pid = 1; pid <= MaxClients;pid++)
 			{
-				if (iPlayer != pid && is_user_connected(pid) && g_iBadClients[pid] > 0)
+				if (iPlayer != pid && is_user_connected(pid) && g_iBadClients[pid] == 2)
 				{
-					new name[MAX_NAME_LENGTH];
-					get_user_name(pid,name,charsmax(name))
-					client_print(iPlayer,print_console, "[God Seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
-					client_print(iPlayer,print_chat, "[God Seeker] Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",name);
+					client_print_color(iPlayer, print_team_blue, "^1[^4%s^1]^3 Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",PLUGIN, g_sPlayerUsernames[pid]);
 				}
 			}
 		}
@@ -415,14 +401,15 @@ public cl_minmodels_callback(id, const cvar[], const value[])
 
 public CBasePlayer_PreThink_Post(id)
 {
+	new btn = get_entvar(id,var_button);
 	if(g_bGodSeekerActivated[id] && g_bGodSeekerKnifeTeleport[id])
 	{
-		new g_Flags = get_entvar(id,var_button);
-		if(g_Flags & IN_ATTACK && get_user_weapon(id) == CSW_KNIFE)
+		new btnold = get_entvar(id,var_oldbuttons);
+		if(btnold & IN_ATTACK == 0 && btn & IN_ATTACK && get_user_weapon(id) == CSW_KNIFE)
 		{
 			if (is_bad_aiming(id))
 			{
-				client_print(id,print_chat, "[God Seeker] Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!");
+				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!",PLUGIN);
 			}
 			else 
 			{
@@ -430,16 +417,20 @@ public CBasePlayer_PreThink_Post(id)
 				if (get_teleport_point(id,TeleportPoint))
 				{
 					teleportPlayer(id,TeleportPoint);
-					client_print(id,print_chat, "[God Seeker] Ты пepeмecтилcя к цeли!");
+					client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Ты пepeмecтилcя к цeли!",PLUGIN);
 				}
 				else 
 				{
-					client_print(id,print_chat, "[God Seeker] Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!");
+					client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Ты нe хoчeшь тудa тeлeпopтиpoвaтьcя!!",PLUGIN);
 				}
 			}
 			g_bGodSeekerKnifeTeleport[id] = false;
 			set_task(0.5,"reenable_teleport",id);
 		}
+	}
+	else if (btn & IN_ATTACK == 0)
+	{
+		g_iPlayerAttack[id] = 0;
 	}
 }
 
@@ -463,7 +454,7 @@ public CBasePlayer_PostThink_Post(id)
 	}
 }
 
-public Player_Spawn_Post( id )
+public Player_Spawn_Post(id)
 {
 	rg_set_rendering(id, kRenderFxNone, 254, 254, 254, kRenderNormal, 254)
 	if (g_bGodSeekerActivated[id])
@@ -474,7 +465,7 @@ public Player_Spawn_Post( id )
 
 public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet) 
 {
-	if(!player || host > MaxClients || ent > MaxClients || !g_bGodSeekerActivated[ent] )
+	if(!player || host > MaxClients || ent > MaxClients || !g_bGodSeekerActivated[ent])
 		return;
 	
 	if (g_iGodSeekerInvisMode[ent] == 5)
@@ -509,10 +500,18 @@ public CSGameRules_FPlayerCanTakeDmg(const pPlayer, const pAttacker)
 
 	if(g_bGodSeekerActivated[pPlayer] && g_bGodSeekerDisableDamage[pPlayer])
 	{
+		if (pPlayer != pAttacker && g_iPlayerAttack[pAttacker] != pPlayer)
+		{
+			client_print_color(pPlayer, print_team_blue, "^1[^4%s^1]^3 Игрок ^4%s^3 [^1%s^3] атакует тебя!",PLUGIN, g_sPlayerUsernames[pAttacker], g_sPlayerSteamIDs[pAttacker]);
+			g_iPlayerAttack[pAttacker] = pPlayer;
+		}
 		SetHookChainReturn(ATYPE_INTEGER, false)
 		return HC_SUPERCEDE
 	}
-
+	else 
+	{
+		g_iPlayerAttack[pAttacker] = pPlayer;
+	}
 	return HC_CONTINUE
 }
 
@@ -529,7 +528,7 @@ public PlayerBlind(const index, const inflictor, const attacker, const Float:fad
 {
 	if (is_user_alive(index) && g_bGodSeekerActivated[index])
 	{	
-		client_print_color(index, index, "^3Ты в peжимe ^4GOD SEEKER^3 пo этoму тeбя нe ocлeпилo!")
+		client_print_color(index, print_team_blue, "^1[^4%s^1]^3Ты в peжимe ^4GOD SEEKER^3 пo этoму тeбя нe ocлeпилo!",PLUGIN)
 		set_member(index, m_blindAlpha, 0);
 		set_member(index, m_blindStartTime, 0.0);
 		set_member(index, m_blindHoldTime, 0.0);
@@ -547,7 +546,7 @@ public AddItem(id, pItem)
 {
 	if (is_user_alive(id) && g_bGodSeekerActivated[id])
 	{
-		if ( get_member(pItem, m_iId) == WEAPON_KNIFE && g_iGodSeekerInvisMode[id] != 5)
+		if (get_member(pItem, m_iId) == WEAPON_KNIFE && g_iGodSeekerInvisMode[id] != 5)
 		{
 			return HC_CONTINUE;
 		}
@@ -574,13 +573,23 @@ public reenable_teleport(id)
 		g_bGodSeekerKnifeTeleport[id] = true;
 }
 
-public message_statusvalue()
+public message_statusvalue(msg_id, msg_dest, id)
 {
-	new pid = get_msg_arg_int(2);
-	if (get_msg_arg_int(1) == 2 && g_bGodSeekerActivated[pid] && g_bGodSeekerDisableUsername[pid])
+	log_amx("%d %d %d", msg_id, msg_dest, id);
+	new targetid = get_msg_arg_int(2);
+	if (get_msg_arg_int(1) == 2 && g_bGodSeekerActivated[targetid] && g_bGodSeekerDisableUsername[targetid])
 	{
 		set_msg_arg_int(1, get_msg_argtype(1), 1);
 		set_msg_arg_int(2, get_msg_argtype(2), 0);
+		if (g_iPlayerAim[id] != targetid)
+		{
+			client_print_color(targetid, print_team_blue, "^1[^4%s^1]^3 Игрок ^4%s^3 [^1%s^3] прицелился в тебя!", PLUGIN, g_sPlayerUsernames[id], g_sPlayerSteamIDs[id]);
+			g_iPlayerAim[id] = targetid;
+		}
+	}
+	else 
+	{
+		g_iPlayerAim[id] = 0;
 	}
 }
 
@@ -609,22 +618,22 @@ stock teleportPlayer(id, Float:TeleportPoint[3])
 	set_entvar(id, var_angles, pLook);
 	set_entvar(id, var_fixangle, 1);
 	set_entvar(id, var_velocity,Float:{0.0,0.0,0.0});
-	unstuck_player( id );
+	unstuck_player(id);
 }
 
 stock bool:get_teleport_point(iPlayer, Float:newTeleportPoint[3])
 {
 	new iEyesOrigin[ 3 ];
-	get_user_origin( iPlayer, iEyesOrigin, Origin_Eyes );
+	get_user_origin(iPlayer, iEyesOrigin, Origin_Eyes);
 	
 	new iEyesEndOrigin[ 3 ];
-	get_user_origin( iPlayer, iEyesEndOrigin, Origin_AimEndEyes );
+	get_user_origin(iPlayer, iEyesEndOrigin, Origin_AimEndEyes);
 	
 	new Float:vecEyesOrigin[ 3 ];
-	IVecFVec( iEyesOrigin, vecEyesOrigin );
+	IVecFVec(iEyesOrigin, vecEyesOrigin);
 	
 	new Float:vecEyesEndOrigin[ 3 ];
-	IVecFVec( iEyesEndOrigin, vecEyesEndOrigin );
+	IVecFVec(iEyesEndOrigin, vecEyesEndOrigin);
 	
 	new maxDistance = get_distance(iEyesOrigin,iEyesEndOrigin);
 	if (maxDistance < 24)
@@ -633,18 +642,18 @@ stock bool:get_teleport_point(iPlayer, Float:newTeleportPoint[3])
 	}
 	
 	new Float:vecDirection[ 3 ];
-	velocity_by_aim( iPlayer, 24, vecDirection );
+	velocity_by_aim(iPlayer, 24, vecDirection);
 	
 	new Float:vecAimOrigin[ 3 ];
-	xs_vec_add( vecEyesOrigin, vecDirection, vecAimOrigin );
+	xs_vec_add(vecEyesOrigin, vecDirection, vecAimOrigin);
 
 	xs_vec_copy(vecEyesOrigin, newTeleportPoint);
 	
 	new i = 24;
 	while (i <= maxDistance) 
 	{
-		xs_vec_add( vecAimOrigin, vecDirection, vecAimOrigin );
-		if(!is_hull_vacant(iPlayer, vecAimOrigin, HULL_HEAD, g_pCommonTr) )
+		xs_vec_add(vecAimOrigin, vecDirection, vecAimOrigin);
+		if(!is_hull_vacant(iPlayer, vecAimOrigin, HULL_HEAD, g_pCommonTr))
 		{
 			return true;
 		}
