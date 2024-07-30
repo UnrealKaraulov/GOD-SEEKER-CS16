@@ -14,13 +14,15 @@ new const INVISIBLED_MODEL_PATH[] = "models/player/gsfp_vip/gsfp_vip.mdl";
 new const INVISIBLED_MODEL_NAME[] = "gsfp_vip";
 
 
-new bool:g_bGodSeekerActivated[MAX_PLAYERS + 1] = false;
-new bool:g_bGodSeekerDisableSounds[MAX_PLAYERS + 1] = false;
-new bool:g_bGodSeekerDisableUsername[MAX_PLAYERS + 1] = false;
-new bool:g_bGodSeekerDisableDamage[MAX_PLAYERS + 1] = false;
-new bool:g_bGodSeekerKnifeTeleport[MAX_PLAYERS + 1] = false;
+new bool:g_bGodSeekerActivated[MAX_PLAYERS + 1] = {false,...};
+new bool:g_bGodSeekerDisableSounds[MAX_PLAYERS + 1] = {false,...};
+new bool:g_bGodSeekerDisableUsername[MAX_PLAYERS + 1] = {false,...};
+new bool:g_bGodSeekerDisableDamage[MAX_PLAYERS + 1] = {false,...};
+new bool:g_bGodSeekerKnifeTeleport[MAX_PLAYERS + 1] = {false,...};
+new bool:g_bIsUserBot[MAX_PLAYERS + 1] = {false,...};
 
 new g_pCommonTr;
+new g_pMenuHandle[MAX_PLAYERS + 1] = {-1, ...};
 
 //new g_iModelInvis = 0;
 new g_iMsgShadow;
@@ -53,6 +55,7 @@ public plugin_init()
 	RegisterHookChain(RG_BuyWeaponByWeaponID, "BuyWeaponByWeaponID");
 	RegisterHookChain(RG_PlayerBlind, "PlayerBlind");
 	RegisterHookChain(RG_CBasePlayer_Spawn, "Player_Spawn_Post", .post = true);
+	RegisterHookChain(RG_CBasePlayer_Killed, "Player_Killed_Post", .post = true);
 	RegisterHookChain(RG_CBasePlayer_PreThink, "CBasePlayer_PreThink_Post", .post = true);
 	register_forward(FM_AddToFullPack, "AddToFullPack_Post", ._post = true);
 	register_message(get_user_msgid("StatusValue"), "message_statusvalue");
@@ -83,10 +86,10 @@ public disable_shadow(id)
 
 public disable_shadow_all()
 {
-	for(new i = 1; i <= MaxClients; i++)
+	for(new id = 1; id <= MaxClients; id++)
 	{
-		if (is_user_connected(i))
-			disable_shadow(i);
+		if (!g_bIsUserBot[id] && is_user_connected(id))
+			disable_shadow(id);
 	}
 	set_msg_block(g_iMsgShadow, BLOCK_SET);
 }
@@ -94,10 +97,10 @@ public disable_shadow_all()
 public enable_shadow_all()
 {
 	set_msg_block(g_iMsgShadow, BLOCK_NOT);
-	for(new i = 1; i <= MaxClients; i++)
+	for(new id = 1; id <= MaxClients; id++)
 	{
-		if (is_user_connected(i))
-			enable_shadow(i);
+		if (!g_bIsUserBot[id] && is_user_connected(id))
+			enable_shadow(id);
 	}
 }
 
@@ -121,10 +124,14 @@ public client_putinserver(id)
 
 	g_iPlayerAim[id] = g_iPlayerAttack[id] = 0;
 
+	g_pMenuHandle[id] = -1;
+
 	if (g_bGodSeekerActivated[id])
 		disable_god_seeker(id)
 		
-	if (!is_user_bot(id) && !is_user_hltv(id))
+	g_bIsUserBot[id] = is_user_bot(id) || is_user_hltv(id);
+	
+	if (!g_bIsUserBot[id])
 	{
 		query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
 	}
@@ -158,7 +165,7 @@ public show_seeker_menu(id)
 	
 	format(tmpmenuitem,127,"[God Seeker] Нacтpoйкa aнтивх:");
 		
-	new vmenu = menu_create(tmpmenuitem, "seeker_menu")
+	new vmenu = g_pMenuHandle[id] = menu_create(tmpmenuitem, "seeker_menu")
 
 	format(tmpmenuitem,127,"\wНeвидимocть [\r%s\w]", 
 	g_iGodSeekerInvisMode[id] == 0 ? "ОТКЛЮЧЕНА" :
@@ -196,8 +203,9 @@ public seeker_menu(id, vmenu, item)
 {
 	if(item == MENU_EXIT || !is_user_connected(id) || !is_user_alive(id)) 
 	{
-		menu_destroy(vmenu)
-		return PLUGIN_HANDLED
+		g_pMenuHandle[id] = -1;
+		menu_destroy(vmenu);
+		return PLUGIN_HANDLED;
 	}
 	
 	new data[6], iName[64], access, callback
@@ -237,7 +245,7 @@ public seeker_menu(id, vmenu, item)
 
 				for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
 				{
-					if (is_user_connected(iPlayer) && floatabs(get_gametime() - g_fLastUpdateMinModels[iPlayer]) > 2.0)
+					if (!g_bIsUserBot[iPlayer] && is_user_connected(iPlayer) && floatabs(get_gametime() - g_fLastUpdateMinModels[iPlayer]) > 2.0)
 					{
 						g_iBadClients[iPlayer] = 2;
 						query_client_cvar(iPlayer, "cl_minmodels", "cl_minmodels_callback");
@@ -290,8 +298,9 @@ public seeker_menu(id, vmenu, item)
 			rg_give_item(id, "weapon_knife");
 		}
 	}
-	menu_destroy(vmenu)
-	return PLUGIN_HANDLED
+	g_pMenuHandle[id] = -1;
+	menu_destroy(vmenu);
+	return PLUGIN_HANDLED;
 }
 
 public give_me_god(id)
@@ -349,6 +358,12 @@ public disable_god_seeker(id)
 	{
 		enable_shadow_all();
 	}
+
+	if (g_pMenuHandle[id] != -1)
+	{
+		menu_destroy(g_pMenuHandle[id]);
+		g_pMenuHandle[id] = -1;
+	}
 }
 
 public print_bad_users(id)
@@ -359,7 +374,7 @@ public print_bad_users(id)
 		{
 			for(new pid = 1; pid <= MaxClients;pid++)
 			{
-				if (iPlayer != pid && is_user_connected(pid) && g_iBadClients[pid] == 2)
+				if (iPlayer != pid && !g_bIsUserBot[pid] && is_user_connected(pid) && g_iBadClients[pid] == 2)
 				{
 					client_print_color(iPlayer, print_team_blue, "^1[^4%s^1]^3 Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",PLUGIN, g_sPlayerUsernames[pid]);
 				}
@@ -390,6 +405,8 @@ public cl_minmodels_callback(id, const cvar[], const value[])
 
 public CBasePlayer_PreThink_Post(id)
 {
+	if (g_bIsUserBot[id])
+		return;
 	new btn = get_entvar(id,var_button);
 	if(g_bGodSeekerActivated[id] && g_bGodSeekerKnifeTeleport[id])
 	{
@@ -431,18 +448,26 @@ public Player_Spawn_Post(id)
 	}
 }
 
+public Player_Killed_Post(id)
+{
+	if (g_bGodSeekerActivated[id])
+	{
+		disable_god_seeker(id);
+	}
+}
+
 public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet) 
 {
 	if(!player || host > MaxClients || ent > MaxClients || !g_bGodSeekerActivated[ent])
 		return;
-		
+
 	if (g_iGodSeekerInvisMode[ent] == 5)
 	{
 		if (g_iBadClients[host] > 0)
 		{
 			set_es(es_handle, ES_RenderFx, kRenderFxNone);
 			set_es(es_handle, ES_RenderMode, kRenderTransTexture);
-			set_es(es_handle, ES_RenderAmt, 2);
+			set_es(es_handle, ES_RenderAmt, 0);
 			set_es(es_handle, ES_RenderColor, {1,1,1});
 		}
 		else 
@@ -462,9 +487,9 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet)
 	else if (g_iGodSeekerInvisMode[ent] == 3)
 	{
 		set_es(es_handle, ES_RenderFx, kRenderFxNone);
-		set_es(es_handle, ES_RenderMode, kRenderTransTexture);
+		set_es(es_handle, ES_RenderMode, kRenderTransColor);
 		set_es(es_handle, ES_RenderAmt, 1);
-		set_es(es_handle, ES_RenderColor, {1,1,1});
+		set_es(es_handle, ES_RenderColor, {0,0,0});
 	}
 	else if (g_iGodSeekerInvisMode[ent] == 2)
 	{
@@ -484,12 +509,12 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet)
 
 public CSGameRules_FPlayerCanTakeDmg(const pPlayer, const pAttacker)
 {
-	if(!is_user_connected(pAttacker))
+	if(pAttacker > MaxClients || !is_user_connected(pAttacker))
 		return HC_CONTINUE
 
 	if(g_bGodSeekerActivated[pPlayer] && g_bGodSeekerDisableDamage[pPlayer])
 	{
-		if (pPlayer != pAttacker && g_iPlayerAttack[pAttacker] != pPlayer)
+		if (pPlayer != pAttacker && g_iPlayerAttack[pAttacker] != pPlayer && !g_bIsUserBot[pAttacker])
 		{
 			client_print_color(pPlayer, print_team_blue, "^1[^4%s^1]^3 Игрок ^4%s^3 [^1%s^3] атакует тебя!",PLUGIN, g_sPlayerUsernames[pAttacker], g_sPlayerSteamIDs[pAttacker]);
 			g_iPlayerAttack[pAttacker] = pPlayer;
@@ -533,7 +558,7 @@ public PlayerBlind(const index, const inflictor, const attacker, const Float:fad
 
 public AddItem(id, pItem)
 {
-	if (is_user_alive(id) && g_bGodSeekerActivated[id])
+	if (!g_bIsUserBot[id] && is_user_alive(id) && g_bGodSeekerActivated[id])
 	{
 		if (get_member(pItem, m_iId) == WEAPON_KNIFE && g_iGodSeekerInvisMode[id] != 5)
 		{
@@ -547,7 +572,7 @@ public AddItem(id, pItem)
 
 public BuyWeaponByWeaponID(id, WeaponIdType:weaponID)
 {
-	if (is_user_alive(id) && g_bGodSeekerActivated[id])
+	if (!g_bIsUserBot[id] && is_user_alive(id) && g_bGodSeekerActivated[id])
 	{
 		SetHookChainArg(2,ATYPE_INTEGER,0)
 		SetHookChainReturn(ATYPE_INTEGER,0)
@@ -564,6 +589,9 @@ public reenable_teleport(id)
 
 public message_statusvalue(msg_id, msg_dest, id)
 {
+	if (id > MaxClients || g_bIsUserBot[id])
+		return;
+
 	new targetid = get_msg_arg_int(2);
 	if (get_msg_arg_int(1) == 2 && g_bGodSeekerActivated[targetid] && g_bGodSeekerDisableUsername[targetid])
 	{
