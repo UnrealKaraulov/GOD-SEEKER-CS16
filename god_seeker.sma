@@ -4,7 +4,7 @@
 #include <xs>
 
 #define PLUGIN "God Seeker"
-#define VERSION "2.1"
+#define VERSION "2.2"
 #define AUTHOR "karaulov"
 
 // Введите сюда требуемый уровень доступа из amxconst.inc
@@ -19,12 +19,12 @@ new bool:g_bGodSeekerDisableSounds[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bGodSeekerDisableUsername[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bGodSeekerDisableDamage[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bGodSeekerKnifeTeleport[MAX_PLAYERS + 1] = {false,...};
+new bool:g_bGodSeekerHideFromBots[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bIsUserBot[MAX_PLAYERS + 1] = {false,...};
 
 new g_pCommonTr;
 new g_pMenuHandle[MAX_PLAYERS + 1] = {-1, ...};
 
-//new g_iModelInvis = 0;
 new g_iMsgShadow;
 new g_iShadowSprite;
 new g_iBadClients[MAX_PLAYERS + 1] = {0, ...};
@@ -117,6 +117,7 @@ public client_putinserver(id)
 
 	g_bGodSeekerActivated[id] = true;
 	g_bGodSeekerKnifeTeleport[id] = true;
+	g_bGodSeekerHideFromBots[id] = false;
 	g_bGodSeekerDisableDamage[id] = true;
 	g_bGodSeekerDisableSounds[id] = true;
 	g_bGodSeekerDisableUsername[id] = true;
@@ -127,7 +128,7 @@ public client_putinserver(id)
 	g_pMenuHandle[id] = -1;
 
 	if (g_bGodSeekerActivated[id])
-		disable_god_seeker(id)
+		disable_god_seeker(id);
 		
 	g_bIsUserBot[id] = is_user_bot(id) || is_user_hltv(id);
 	
@@ -145,7 +146,7 @@ public client_disconnected(id)
 	g_iBadClients[id] = 0;
 
 	if (g_bGodSeekerActivated[id])
-		disable_god_seeker(id)
+		disable_god_seeker(id);
 }
 
 public show_seeker_menu(id)
@@ -157,15 +158,24 @@ public show_seeker_menu(id)
 
 	if (!g_bGodSeekerActivated[id])
 	{
-		client_print_color(id, print_team_blue, "^1[^4%s^1]^3Рeжим God Seeker oтключeн.",PLUGIN);
+		client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим God Seeker oтключeн!!",PLUGIN);
 		return PLUGIN_HANDLED;
 	}
 	
+	if (g_pMenuHandle[id] != -1)
+	{
+		menu_destroy(g_pMenuHandle[id]);
+		g_pMenuHandle[id] = -1;
+		show_menu(id, 0, "^n", 0);
+		return PLUGIN_HANDLED;
+	}
+
 	new tmpmenuitem[128];
-	
 	format(tmpmenuitem,127,"[God Seeker] Нacтpoйкa aнтивх:");
 		
-	new vmenu = g_pMenuHandle[id] = menu_create(tmpmenuitem, "seeker_menu")
+	new vmenu = menu_create(tmpmenuitem, "seeker_menu");
+
+	g_pMenuHandle[id] = vmenu;
 
 	format(tmpmenuitem,127,"\wНeвидимocть [\r%s\w]", 
 	g_iGodSeekerInvisMode[id] == 0 ? "ОТКЛЮЧЕНА" :
@@ -175,36 +185,38 @@ public show_seeker_menu(id)
 	(g_iGodSeekerInvisMode[id] == 4 ? "НЕВИДИМОСТЬ 4" : 
 	(g_iGodSeekerInvisMode[id] == 5 ? "ПРОЗРАЧНАЯ МОДЕЛЬ" 
 	: "ОТКЛЮЧЕНА" ))))));
-	menu_additem(vmenu, tmpmenuitem,"1")
+	menu_additem(vmenu, tmpmenuitem,"1");
 	format(tmpmenuitem,127,"\wЗвуки [\r%s\w]", g_bGodSeekerDisableSounds[id] ? "НЕ СЛЫШНЫ" : "СЛЫШНЫ");
-	menu_additem(vmenu, tmpmenuitem,"2")
+	menu_additem(vmenu, tmpmenuitem,"2");
 	format(tmpmenuitem,127,"\wНикнeйм [\r%s\w]", g_bGodSeekerDisableUsername[id] ? "НЕВИДИМЫЙ" : "ОТОБРАЖАТЬ");
-	menu_additem(vmenu, tmpmenuitem,"3")
+	menu_additem(vmenu, tmpmenuitem,"3");
 	format(tmpmenuitem,127,"\wУpoн [\r%s\w]", g_bGodSeekerDisableDamage[id] ? "БЕССМЕРТНЫЙ" : "ПОЛУЧАТЬ");
-	menu_additem(vmenu, tmpmenuitem,"4")
+	menu_additem(vmenu, tmpmenuitem,"4");
 	format(tmpmenuitem,127,"\wТeлeпopт нoжoм [\r%s\w]", g_bGodSeekerKnifeTeleport[id] ? "АКТИВИРОВАН" : "ОТКЛЮЧЕН");
-	menu_additem(vmenu, tmpmenuitem,"5")
+	menu_additem(vmenu, tmpmenuitem,"5");
+	format(tmpmenuitem,127,"\wСкрыть от ботов [\r%s\w]", g_bGodSeekerHideFromBots[id] ? "ДА" : "НЕТ");
+	menu_additem(vmenu, tmpmenuitem,"6");
 	format(tmpmenuitem,127,"\wВыключить");
-	menu_additem(vmenu, tmpmenuitem,"6")
+	menu_additem(vmenu, tmpmenuitem,"7");
 
 
 	
-	menu_setprop(vmenu, MPROP_NEXTNAME, "\yСлeдующий cпиcoк")
-	menu_setprop(vmenu, MPROP_BACKNAME, "\yПpeдыдущий cпиcoк")
-	menu_setprop(vmenu, MPROP_EXITNAME, "\rВыйти из God Seeker мeню")
-	menu_setprop(vmenu, MPROP_EXIT,MEXIT_ALL)
+	menu_setprop(vmenu, MPROP_NEXTNAME, "\yСлeдующий cпиcoк");
+	menu_setprop(vmenu, MPROP_BACKNAME, "\yПpeдыдущий cпиcoк");
+	menu_setprop(vmenu, MPROP_EXITNAME, "\rВыйти из God Seeker мeню");
+	menu_setprop(vmenu, MPROP_EXIT,MEXIT_ALL);
 	
 		
-	menu_display(id,vmenu,0)
-	return PLUGIN_HANDLED
+	menu_display(id,vmenu,0);
+	return PLUGIN_HANDLED;
 }
 
 public seeker_menu(id, vmenu, item) 
 {
 	if(item == MENU_EXIT || !is_user_connected(id) || !is_user_alive(id)) 
 	{
-		g_pMenuHandle[id] = -1;
 		menu_destroy(vmenu);
+		g_pMenuHandle[id] = -1;
 		return PLUGIN_HANDLED;
 	}
 	
@@ -239,7 +251,6 @@ public seeker_menu(id, vmenu, item)
 			else if (g_iGodSeekerInvisMode[id] == 4)
 			{
 				rg_set_user_model(id, INVISIBLED_MODEL_NAME, true);
-
 				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти 5!",PLUGIN);
 				g_iGodSeekerInvisMode[id] = 5;
 
@@ -268,38 +279,50 @@ public seeker_menu(id, vmenu, item)
 				g_iGodSeekerInvisMode[id] = 1;
 				rg_give_item(id, "weapon_knife");
 			}
-			
-			
-			show_seeker_menu(id);
 		}
 		case 2:
 		{
 			g_bGodSeekerDisableSounds[id] = !g_bGodSeekerDisableSounds[id];
-			show_seeker_menu(id);
 		}
 		case 3:
 		{
 			g_bGodSeekerDisableUsername[id] = !g_bGodSeekerDisableUsername[id];
-			show_seeker_menu(id);
 		}
 		case 4:
 		{
 			g_bGodSeekerDisableDamage[id] = !g_bGodSeekerDisableDamage[id];
-			show_seeker_menu(id);
 		}
 		case 5:
 		{
 			g_bGodSeekerKnifeTeleport[id] = !g_bGodSeekerKnifeTeleport[id];
-			show_seeker_menu(id);
 		}
 		case 6:
 		{
+			g_bGodSeekerHideFromBots[id] = !g_bGodSeekerHideFromBots[id];
+			new flags = get_entvar(id, var_flags);
+			
+			if (g_bGodSeekerHideFromBots[id] && flags & FL_NOTARGET == 0)
+			{
+				flags += FL_NOTARGET;
+				set_entvar(id, var_flags, flags);
+			}
+			else if (!g_bGodSeekerHideFromBots[id] && flags & FL_NOTARGET)
+			{
+				flags -= FL_NOTARGET;
+				set_entvar(id, var_flags, flags);
+			}
+		}
+		case 7:
+		{
 			disable_god_seeker(id);
 			rg_give_item(id, "weapon_knife");
+			return PLUGIN_HANDLED;
 		}
 	}
-	g_pMenuHandle[id] = -1;
+	// menu_update()
 	menu_destroy(vmenu);
+	g_pMenuHandle[id] = -1;
+	show_seeker_menu(id);
 	return PLUGIN_HANDLED;
 }
 
@@ -313,15 +336,13 @@ public give_me_god(id)
 			if (g_iGodSeekerInvisMode[id] != 5)
 				rg_give_item(id, "weapon_knife");
 			enable_god_seeker(id)
-			
-			g_bGodSeekerActivated[id] = true;
+
+			show_seeker_menu(id);
 		}
 		else 
 		{
 			disable_god_seeker(id);
 			rg_give_item(id, "weapon_knife");
-
-			g_bGodSeekerActivated[id] = false;
 		}
 		return PLUGIN_HANDLED;
 	}
@@ -340,6 +361,21 @@ public enable_god_seeker(id)
 	print_bad_users(0);
 
 	disable_shadow_all();
+			
+	g_bGodSeekerActivated[id] = true;
+
+	new flags = get_entvar(id, var_flags);
+			
+	if (g_bGodSeekerHideFromBots[id] && flags & FL_NOTARGET == 0)
+	{
+		flags += FL_NOTARGET;
+		set_entvar(id, var_flags, flags);
+	}
+	else if (!g_bGodSeekerHideFromBots[id] && flags & FL_NOTARGET)
+	{
+		flags -= FL_NOTARGET;
+		set_entvar(id, var_flags, flags);
+	}
 }
 
 public disable_god_seeker(id)
@@ -363,6 +399,7 @@ public disable_god_seeker(id)
 	{
 		menu_destroy(g_pMenuHandle[id]);
 		g_pMenuHandle[id] = -1;
+		show_menu(id, 0, "^n", 0);
 	}
 }
 
@@ -542,7 +579,7 @@ public PlayerBlind(const index, const inflictor, const attacker, const Float:fad
 {
 	if (is_user_alive(index) && g_bGodSeekerActivated[index])
 	{	
-		client_print_color(index, print_team_blue, "^1[^4%s^1]^3Ты в peжимe ^4GOD SEEKER^3 пo этoму тeбя нe ocлeпилo!",PLUGIN);
+		client_print_color(index, print_team_blue, "^1[^4%s^1]^3 Ты в peжимe ^4GOD SEEKER^3 пo этoму тeбя нe ocлeпилo!",PLUGIN);
 		set_member(index, m_blindAlpha, 0);
 		set_member(index, m_blindStartTime, 0.0);
 		set_member(index, m_blindHoldTime, 0.0);
