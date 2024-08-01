@@ -4,7 +4,7 @@
 #include <xs>
 
 #define PLUGIN "God Seeker"
-#define VERSION "2.2"
+#define VERSION "2.3"
 #define AUTHOR "karaulov"
 
 // Введите сюда требуемый уровень доступа из amxconst.inc
@@ -50,14 +50,16 @@ public plugin_init()
 	register_clcmd("say /godmenu", "show_seeker_menu");
 	
 	RegisterHookChain(RG_CSGameRules_FPlayerCanTakeDamage, "CSGameRules_FPlayerCanTakeDmg", .post = false);
-	RegisterHookChain(RH_SV_StartSound, "SV_StartSound_Pre");
-	RegisterHookChain(RG_CBasePlayer_AddPlayerItem, "AddItem");
-	RegisterHookChain(RG_BuyWeaponByWeaponID, "BuyWeaponByWeaponID");
-	RegisterHookChain(RG_PlayerBlind, "PlayerBlind");
+	RegisterHookChain(RH_SV_StartSound, "SV_StartSound_Pre", .post = false);
+	RegisterHookChain(RG_CBasePlayer_AddPlayerItem, "AddItem", .post = false);
+	RegisterHookChain(RG_BuyWeaponByWeaponID, "BuyWeaponByWeaponID", .post = false);
+	RegisterHookChain(RG_PlayerBlind, "PlayerBlind", .post = false);
 	RegisterHookChain(RG_CBasePlayer_Spawn, "Player_Spawn_Post", .post = true);
 	RegisterHookChain(RG_CBasePlayer_Killed, "Player_Killed_Post", .post = true);
 	RegisterHookChain(RG_CBasePlayer_PreThink, "CBasePlayer_PreThink_Post", .post = true);
 	register_forward(FM_AddToFullPack, "AddToFullPack_Post", ._post = true);
+	RegisterHookChain(RG_CBasePlayer_Observer_IsValidTarget, "CBasePlayer_Observer_IsValidTarget", false);
+
 	register_message(get_user_msgid("StatusValue"), "message_statusvalue");
 
 	g_iMsgShadow = get_user_msgid("ShadowIdx");
@@ -115,7 +117,7 @@ public client_putinserver(id)
 {
 	g_iBadClients[id] = 2;
 
-	g_bGodSeekerActivated[id] = true;
+	g_bGodSeekerActivated[id] = false;
 	g_bGodSeekerKnifeTeleport[id] = true;
 	g_bGodSeekerHideFromBots[id] = false;
 	g_bGodSeekerDisableDamage[id] = true;
@@ -387,6 +389,12 @@ public disable_god_seeker(id)
 			client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим ^4God Seeker^3 oтключeн.",PLUGIN);
 		}
 	}
+
+	if (g_bGodSeekerActivated[id])
+	{
+		log_to_file("god_seeker.log", "Админиcтpaтop %s [%s] дeактивиpoвaл peжим God Seeker.", g_sPlayerUsernames[id], g_sPlayerSteamIDs[id]);
+		server_print("Админиcтpaтop %s дeактивиpoвaл peжим God Seeker.", g_sPlayerUsernames[id])
+	}
 	
 	g_bGodSeekerActivated[id] = false;
 
@@ -491,6 +499,47 @@ public Player_Killed_Post(id)
 	{
 		disable_god_seeker(id);
 	}
+	
+	new numTeam1 = 0;
+	new numTeam2 = 0;
+
+	for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
+	{
+		if (iPlayer != id && is_user_connected(iPlayer))
+		{
+			if (g_bGodSeekerActivated[iPlayer])
+				continue;
+
+			if (!is_user_alive(iPlayer))
+				continue;
+
+			if (get_member(iPlayer, m_iTeam) == TEAM_CT)
+				numTeam1++;
+			else if (get_member(iPlayer, m_iTeam) == TEAM_TERRORIST)
+				numTeam2++;
+		}
+	}
+
+	if (numTeam1 == 0 || numTeam2 == 0)
+	{
+		for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
+		{
+			if (g_bGodSeekerActivated[iPlayer])
+			{
+				disable_god_seeker(iPlayer);
+				client_print_color(iPlayer, print_team_blue, "^1[^4%s^1]^3 Недостаточно игроков!",PLUGIN);
+			}
+		}
+	}
+}
+
+public CBasePlayer_Observer_IsValidTarget(const id, iPlayerIndex, bool:bSameTeam)
+{
+	if (g_bGodSeekerActivated[iPlayerIndex])
+	{
+		SetHookChainArg(2, ATYPE_INTEGER, 0);
+	}
+	return HC_CONTINUE;
 }
 
 public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet) 
