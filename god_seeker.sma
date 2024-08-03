@@ -4,14 +4,22 @@
 #include <xs>
 
 #define PLUGIN "God Seeker"
-#define VERSION "2.4"
+#define VERSION "2.5"
 #define AUTHOR "karaulov"
 
 // Введите сюда требуемый уровень доступа из amxconst.inc
 #define ADMIN_ACCESS_LEVEL ADMIN_BAN
+// Закомментируйте следующую строку что бы запретить вход в software режиме
+//#define ALLOW_SOFTWARE_MODE
 
 new const INVISIBLED_MODEL_NAME[] = "gsfp_vip"; // невидимая модель вида models/player/%s/%s.mdl
 
+#define BAD_STATE_PENDING 3
+#define BAD_STATE_SOFWARE 2
+#define BAD_STATE_MINMODELS 1
+#define BAD_STATE_NONE 0
+
+//new g_bMonitorMinModelsActive = false;
 
 new bool:g_bGodSeekerActivated[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bGodSeekerDisableSounds[MAX_PLAYERS + 1] = {false,...};
@@ -35,6 +43,7 @@ new Float:g_fLastUpdateMinModels[MAX_PLAYERS + 1] = {0.0, ...};
 
 new g_sPlayerUsernames[MAX_PLAYERS + 1][64];
 new g_sPlayerSteamIDs[MAX_PLAYERS + 1][64];
+
 
 public plugin_init() 
 {
@@ -80,7 +89,7 @@ public plugin_precache()
 
 public client_putinserver(id)
 {
-	g_iBadClients[id] = 2;
+	g_iBadClients[id] = BAD_STATE_PENDING;
 
 	g_bGodSeekerActivated[id] = false;
 	g_bGodSeekerTeleport[id] = true;
@@ -101,7 +110,7 @@ public client_putinserver(id)
 	
 	if (!g_bIsUserBot[id])
 	{
-		query_client_cvar(id, "cl_minmodels", "cl_minmodels_callback");
+		query_client_cvar(id, "d_subdiv16", "d_subdiv16_callback");
 	}
 
 	get_user_name(id, g_sPlayerUsernames[id], charsmax(g_sPlayerUsernames[]));
@@ -110,7 +119,7 @@ public client_putinserver(id)
 
 public client_disconnected(id)
 {
-	g_iBadClients[id] = 0;
+	g_iBadClients[id] = BAD_STATE_NONE;
 
 	if (g_bGodSeekerActivated[id])
 		disable_god_seeker(id);
@@ -225,8 +234,11 @@ public seeker_menu(id, vmenu, item)
 				{
 					if (!g_bIsUserBot[iPlayer] && is_user_connected(iPlayer) && floatabs(get_gametime() - g_fLastUpdateMinModels[iPlayer]) > 2.0)
 					{
-						g_iBadClients[iPlayer] = 2;
-						query_client_cvar(iPlayer, "cl_minmodels", "cl_minmodels_callback");
+						if (g_iBadClients[iPlayer] != BAD_STATE_PENDING && g_iBadClients[iPlayer] != BAD_STATE_SOFWARE)
+						{
+							g_iBadClients[iPlayer] = BAD_STATE_MINMODELS;
+							query_client_cvar(iPlayer, "cl_minmodels", "cl_minmodels_callback");
+						}
 						g_fLastUpdateMinModels[iPlayer] = get_gametime();
 					}
 				}
@@ -389,31 +401,54 @@ public print_bad_users(id)
 		{
 			for(new pid = 1; pid <= MaxClients;pid++)
 			{
-				if (iPlayer != pid && !g_bIsUserBot[pid] && is_user_connected(pid) && g_iBadClients[pid] == 2)
+				if (iPlayer != pid && !g_bIsUserBot[pid])
 				{
-					client_print_color(iPlayer, print_team_blue, "^1[^4%s^1]^3 Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",PLUGIN, g_sPlayerUsernames[pid]);
+					if (g_iBadClients[pid] == BAD_STATE_PENDING)
+					{
+						client_print_color(iPlayer, print_team_blue, "^1[^4%s^1]^3 Игpoк %s мoжeт видeть вac в peжимe ^"ПРОЗРАЧНАЯ МОДЕЛЬ^"",PLUGIN, g_sPlayerUsernames[pid]);
+					}
+					else if (g_iBadClients[pid] == BAD_STATE_SOFWARE)
+					{
+						client_print_color(iPlayer, print_team_blue, "^1[^4%s^1]^3 Игpoк %s может слегка видeть вac в peжимe ^"НЕВИДИМОСТЬ 1 и 2^"",PLUGIN, g_sPlayerUsernames[pid]);
+					}
 				}
 			}
 		}
 	}
 }
 
-public cl_minmodels_callback(id, const cvar[], const value[])
+public d_subdiv16_callback(id, const cvar[], const value[])
 {
 	if (is_user_connected(id))
 	{
 		if(equal(value, "Bad CVAR request"))
 		{
-			g_iBadClients[id] = 2;
+			g_iBadClients[id] = BAD_STATE_MINMODELS;
+			return;
+		}
+#if !defined(ALLOW_SOFTWARE_MODE)
+		rh_drop_client(id, "Software mode");
+#endif
+		g_iBadClients[id] = BAD_STATE_SOFWARE;
+	}
+}
+
+public cl_minmodels_callback(id, const cvar[], const value[])
+{
+	if (is_user_connected(id) && g_iBadClients[id] == BAD_STATE_MINMODELS)
+	{
+		if(equal(value, "Bad CVAR request"))
+		{
+			g_iBadClients[id] = BAD_STATE_PENDING;
 			return;
 		}
 		if (strtof(value) == 0.0)
 		{
-			g_iBadClients[id] = 0;
+			g_iBadClients[id] = BAD_STATE_NONE;
 		}
 		else 
 		{
-			g_iBadClients[id] = 1;
+			g_iBadClients[id] = BAD_STATE_MINMODELS;
 		}
 	}
 }
@@ -558,7 +593,7 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet)
 	}
 	else if (g_iGodSeekerInvisMode[ent] == 2)
 	{
-		set_es(es_handle, ES_RenderMode, kRenderTransAlpha);
+		set_es(es_handle, ES_RenderMode, kRenderTransTexture);
 		set_es(es_handle, ES_RenderAmt, 1);
 		set_es(es_handle, ES_RenderColor, {255,255,255});
 	}
