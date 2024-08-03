@@ -9,7 +9,7 @@
 
 // Введите сюда требуемый уровень доступа из amxconst.inc
 #define ADMIN_ACCESS_LEVEL ADMIN_BAN
-// Закомментируйте следующую строку что бы запретить вход в software режиме
+// Раскомментируйте следующую строку что бы разрешить вход в software режиме
 //#define ALLOW_SOFTWARE_MODE
 
 new const INVISIBLED_MODEL_NAME[] = "gsfp_vip"; // невидимая модель вида models/player/%s/%s.mdl
