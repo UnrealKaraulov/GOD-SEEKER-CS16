@@ -19,8 +19,6 @@ new const INVISIBLED_MODEL_NAME[] = "gsfp_vip"; // невидимая модел
 #define BAD_STATE_MINMODELS 1
 #define BAD_STATE_NONE 0
 
-//new g_bMonitorMinModelsActive = false;
-
 new bool:g_bGodSeekerActivated[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bGodSeekerDisableSounds[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bGodSeekerDisableUsername[MAX_PLAYERS + 1] = {false,...};
@@ -71,6 +69,8 @@ public plugin_init()
 	g_iMsgShadow = get_user_msgid("ShadowIdx");
 
 	g_pCommonTr = create_tr2();
+
+	set_task(5.0, "update_min_models", 2);
 }
 
 public plugin_end()
@@ -229,23 +229,10 @@ public seeker_menu(id, vmenu, item)
 				g_iGodSeekerInvisMode[id] = 1;
 				client_print_color(id, print_team_blue, "^1[^4%s^1]^3 Рeжим нeвидимocти %d! [Прозрачная модель]",PLUGIN, g_iGodSeekerInvisMode[id]);
 				rg_set_user_model(id, INVISIBLED_MODEL_NAME, true);
-
-				for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
-				{
-					if (!g_bIsUserBot[iPlayer] && is_user_connected(iPlayer) && floatabs(get_gametime() - g_fLastUpdateMinModels[iPlayer]) > 2.0)
-					{
-						if (g_iBadClients[iPlayer] != BAD_STATE_PENDING && g_iBadClients[iPlayer] != BAD_STATE_SOFWARE)
-						{
-							g_iBadClients[iPlayer] = BAD_STATE_MINMODELS;
-							query_client_cvar(iPlayer, "cl_minmodels", "cl_minmodels_callback");
-						}
-						g_fLastUpdateMinModels[iPlayer] = get_gametime();
-					}
-				}
-				
-				remove_task(1);
-				set_task(2.0, "print_bad_users", 1);
 			}
+
+			remove_task(1);
+			set_task(2.0, "print_bad_users", 1);
 		}
 		case 2:
 		{
@@ -435,7 +422,7 @@ public d_subdiv16_callback(id, const cvar[], const value[])
 
 public cl_minmodels_callback(id, const cvar[], const value[])
 {
-	if (is_user_connected(id) && g_iBadClients[id] == BAD_STATE_MINMODELS)
+	if (is_user_connected(id))
 	{
 		if(equal(value, "Bad CVAR request"))
 		{
@@ -451,6 +438,37 @@ public cl_minmodels_callback(id, const cvar[], const value[])
 			g_iBadClients[id] = BAD_STATE_MINMODELS;
 		}
 	}
+}
+
+public update_min_models(id)
+{
+	new bool:need_update = false;
+
+	for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
+	{
+		if (g_bGodSeekerActivated[iPlayer] && g_iGodSeekerInvisMode[iPlayer] == 1)
+		{
+			need_update = true;
+			break;
+		}
+	}
+
+	if (need_update)
+	{
+		for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
+		{
+			if (!g_bIsUserBot[iPlayer] && is_user_connected(iPlayer) && floatabs(get_gametime() - g_fLastUpdateMinModels[iPlayer]) > 2.0)
+			{
+				if (g_iBadClients[iPlayer] != BAD_STATE_PENDING && g_iBadClients[iPlayer] != BAD_STATE_SOFWARE)
+				{
+					query_client_cvar(iPlayer, "cl_minmodels", "cl_minmodels_callback");
+				}
+				g_fLastUpdateMinModels[iPlayer] = get_gametime();
+			}
+		}
+	}
+
+	set_task(5.0, "update_min_models", 2);
 }
 
 public CBasePlayer_PreThink(id)
