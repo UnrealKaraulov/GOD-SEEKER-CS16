@@ -4,13 +4,17 @@
 #include <xs>
 
 #define PLUGIN "God Seeker"
-#define VERSION "2.5"
+#define VERSION "2.6"
 #define AUTHOR "karaulov"
 
 // Введите сюда требуемый уровень доступа из amxconst.inc
 #define ADMIN_ACCESS_LEVEL ADMIN_BAN
 // Раскомментируйте следующую строку что бы разрешить вход в software режиме
 //#define ALLOW_SOFTWARE_MODE
+// Время между обновлениями cl_minmodels 
+#define MINMODEL_REFRESHRATE 1.0
+// Вращать игрока после телепорта
+//#define TURN_PLAYER_TELEPORT
 
 new const INVISIBLED_MODEL_NAME[] = "gsfp_vip"; // невидимая модель вида models/player/%s/%s.mdl
 
@@ -468,7 +472,7 @@ public update_min_models(id)
 		}
 	}
 
-	set_task(5.0, "update_min_models", 2);
+	set_task(MINMODEL_REFRESHRATE, "update_min_models", 2);
 }
 
 public CBasePlayer_PreThink(id)
@@ -752,7 +756,9 @@ stock teleportPlayer(id, Float:TeleportPoint[3])
 	set_entvar(id, var_origin, TeleportPoint);
 	new Float:pLook[3];
 	get_entvar(id, var_angles, pLook);
+#if defined(TURN_PLAYER_TELEPORT)
 	pLook[1]+=180.0;
+#endif
 	set_entvar(id, var_angles, pLook);
 	set_entvar(id, var_fixangle, 1);
 	set_entvar(id, var_velocity,Float:{0.0,0.0,0.0});
