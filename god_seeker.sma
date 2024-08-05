@@ -7,7 +7,7 @@
 #include <easy_cfg>
 
 #define PLUGIN "God Seeker"
-#define VERSION "3.0"
+#define VERSION "3.1"
 #define AUTHOR "karaulov"
 
 
