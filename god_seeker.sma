@@ -1011,7 +1011,6 @@ public CSGameRules_FPlayerCanTakeDmg(const pPlayer, const pAttacker)
 {
 	if(pAttacker > MaxClients || pAttacker == 0)
 	{
-		SetHookChainReturn(ATYPE_INTEGER, false);
 		return HC_CONTINUE;
 	}
 
