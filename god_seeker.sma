@@ -261,7 +261,7 @@ public initialize_god_cfg()
 		cfg_write_str("Russian", "aiming", "Игрок ^^4%s^^3 [^^1%s^^3] прицелился в тебя!");
 
 		cfg_write_str("English", "no_blind", "You not blinded because ^^4God Seeker^^3 was activated!");
-		cfg_write_str("Russian", "no_blind", "Не ослеплен! Ты в ^4God Seeker^^3 режиме.");
+		cfg_write_str("Russian", "no_blind", "Не ослеплен! Ты в ^^4God Seeker^^3 режиме.");
 
 		cfg_write_str("English", "attacked", "Player ^^4%s^^3 [SteamID: ^^1%s^^3] attacked you!");
 		cfg_write_str("Russian", "attacked", "Игрок ^^4%s^^3 [^^1%s^^3] атакует тебя!");
@@ -492,7 +492,7 @@ public show_seeker_menu(id)
 	menu_additem(vmenu, tmpmenuitem,"4");
 	formatex(tmpmenuitem,charsmax(tmpmenuitem),"\w%s [\r%s\w]", g_sLANG[TELEPORT_MENU], g_bGodSeekerTeleport[id] ? g_sLANG[ON_MENU] : g_sLANG[OFF_MENU]);
 	menu_additem(vmenu, tmpmenuitem,"5");
-	formatex(tmpmenuitem,charsmax(tmpmenuitem),"\w%s [\r%s\w]", g_sLANG[BOTS_MENU], g_bGodSeekerHideFromBots[id] ? g_sLANG[BOT_TRIGGERED] : g_sLANG[BOT_IGNORES]);
+	formatex(tmpmenuitem,charsmax(tmpmenuitem),"\w%s [\r%s\w]", g_sLANG[BOTS_MENU], g_bGodSeekerHideFromBots[id] ? g_sLANG[BOT_IGNORES] : g_sLANG[BOT_TRIGGERED]);
 	menu_additem(vmenu, tmpmenuitem,"6");
 	formatex(tmpmenuitem,charsmax(tmpmenuitem),"\w%s", g_sLANG[DISABLE_MENU]);
 	menu_additem(vmenu, tmpmenuitem,"7");
