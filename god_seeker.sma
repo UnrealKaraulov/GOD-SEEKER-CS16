@@ -1012,7 +1012,7 @@ public CSGameRules_FPlayerCanTakeDmg(const pPlayer, const pAttacker)
 	if(pAttacker > MaxClients || pAttacker == 0)
 	{
 		SetHookChainReturn(ATYPE_INTEGER, false);
-		return HC_SUPERCEDE;
+		return HC_CONTINUE;
 	}
 
 	if(g_bGodSeekerActivated[pPlayer] && g_bGodSeekerDisableDamage[pPlayer])
