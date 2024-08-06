@@ -327,16 +327,24 @@ stock internal_ini_write(const file[], const section[], const key[], value[])
 
 stock cut_float_better(str[])
 {
-	new len = strlen(str);
-	for(new i = len - 1; i > 0; i--)
+	if (contain(str,".") > 0)
 	{
-		if (str[i] == '0' || str[i] == '.')
+		new len = strlen(str);
+		for(new i = len - 1; i > 0; i--)
 		{
-			str[i] = EOS;
-		}
-		else 
-		{
-			break;
+			if (str[i] == '0')
+			{
+				str[i] = EOS;
+			}
+			else if (str[i] == '.')
+			{
+				str[i] = EOS;
+				break;
+			}
+			else 
+			{
+				break;
+			}
 		}
 	}
 }
