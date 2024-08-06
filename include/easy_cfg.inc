@@ -1,3 +1,5 @@
+#define _easy_cfg_has_internal
+
 #if !defined _easy_cfg_internal
 #if !defined _ini_file_included
 	#include <ini_file>
@@ -328,7 +330,7 @@ stock cut_float_better(str[])
 	new len = strlen(str);
 	for(new i = len - 1; i > 0; i--)
 	{
-		if (i == '0' || i == '.')
+		if (str[i] == '0' || str[i] == '.')
 		{
 			str[i] = EOS;
 		}
