@@ -7,7 +7,7 @@
 #include <easy_cfg>
 
 #define PLUGIN "God Seeker"
-#define VERSION "3.1"
+#define VERSION "3.2"
 #define AUTHOR "karaulov"
 
 
@@ -107,6 +107,7 @@ public plugin_init()
 	RegisterHookChain(RG_CBasePlayer_PreThink, "CBasePlayer_PreThink", .post = false);
 	RegisterHookChain(RG_CBasePlayer_Observer_IsValidTarget, "CBasePlayer_Observer_IsValidTarget", .post = false);
 	RegisterHookChain(RG_CSGameRules_CanPlayerHearPlayer, "CSGameRules_CanPlayerHearPlayer", .post = false);
+	RegisterHookChain(RG_CBasePlayer_SetClientUserInfoModel, "CBasePlayer_SetClientUserInfoModel", .post = false);
 	register_forward(FM_AddToFullPack, "AddToFullPack_Post", ._post = true);
 	register_message(get_user_msgid("StatusValue"), "message_statusvalue");
 
@@ -950,34 +951,48 @@ public CBasePlayer_Observer_IsValidTarget(const id, iPlayerIndex, bool:bSameTeam
 	return HC_CONTINUE;
 }
 
+public CBasePlayer_SetClientUserInfoModel(const id, infobuffer[], szNewModel[])
+{
+	if(g_bGodSeekerActivated[id] && g_iGodSeekerInvisMode[id] == 1)
+	{
+		engfunc(EngFunc_SetClientKeyValue, id, engfunc(EngFunc_GetInfoKeyBuffer, id), "model", g_sInvisModelPlayer);
+		return HC_BREAK;
+	}		
+	return HC_CONTINUE;
+}
+
 public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet) 
 {
 	if(!player || host > MaxClients || ent > MaxClients || !g_bGodSeekerActivated[ent])
-		return;
+		return FMRES_IGNORED;
 
 	if (g_iGodSeekerInvisMode[ent] == 5)
 	{
 		new effects = get_es(es_handle, ES_Effects);
 		if (effects & EF_NODRAW == 0)
 			set_es(es_handle, ES_Effects, effects | EF_NODRAW);
+		return FMRES_HANDLED;
 	}
 	else if (g_iGodSeekerInvisMode[ent] == 4)
 	{
 		set_es(es_handle, ES_RenderMode, kRenderTransTexture);
 		set_es(es_handle, ES_RenderAmt, 0);
 		set_es(es_handle, ES_RenderColor, {1,1,1});
+		return FMRES_HANDLED;
 	}
 	else if (g_iGodSeekerInvisMode[ent] == 3)
 	{
 		set_es(es_handle, ES_RenderMode, kRenderTransColor);
 		set_es(es_handle, ES_RenderAmt, 1);
 		set_es(es_handle, ES_RenderColor, {1,1,1});
+		return FMRES_HANDLED;
 	}
 	else if (g_iGodSeekerInvisMode[ent] == 2)
 	{
 		set_es(es_handle, ES_RenderMode, kRenderTransTexture);
 		set_es(es_handle, ES_RenderAmt, 1);
 		set_es(es_handle, ES_RenderColor, {255,255,255});
+		return FMRES_HANDLED;
 	}
 	else if (g_iGodSeekerInvisMode[ent] == 1)
 	{
@@ -991,7 +1006,9 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet)
 		{
 			set_es(es_handle, ES_WeaponModel, 0);
 		}
+		return FMRES_HANDLED;
 	}
+	return FMRES_IGNORED;
 }
 
 public CSGameRules_CanPlayerHearPlayer(const listener, const sender)
