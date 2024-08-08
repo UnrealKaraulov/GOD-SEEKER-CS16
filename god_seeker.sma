@@ -7,7 +7,7 @@
 #include <easy_cfg>
 
 #define PLUGIN "God Seeker"
-#define VERSION "3.2"
+#define VERSION "3.3"
 #define AUTHOR "karaulov"
 
 
@@ -115,29 +115,6 @@ public plugin_init()
 	g_pCommonTr = create_tr2();
 
 	set_task(5.0, "update_min_models", 2);
-
-	cfg_set_path("plugins/god_seeker.cfg");
-
-	new tmp_cfgdir[512];
-	cfg_get_path(tmp_cfgdir,charsmax(tmp_cfgdir));
-	trim_to_dir(tmp_cfgdir);
-
-	if (!dir_exists(tmp_cfgdir))
-	{
-		log_amx("Warning config dir not found: %s",tmp_cfgdir);
-		if (mkdir(tmp_cfgdir) < 0)
-		{
-			log_error(AMX_ERR_NOTFOUND, "Can't create %s dir",tmp_cfgdir);
-			set_fail_state("Fail while create %s dir",tmp_cfgdir);
-			return;
-		}
-		else 
-		{
-			log_amx("Config dir %s created!",tmp_cfgdir);
-		}
-	}
-
-	initialize_god_cfg();
 }
 
 public plugin_end()
@@ -147,6 +124,8 @@ public plugin_end()
 
 public plugin_precache()
 {
+	initialize_god_cfg();
+	
 	g_iShadowSprite = precache_model("sprites/shadow_circle.spr");
 	/*g_iModelInvis = */
 	new modelName[64];
@@ -194,7 +173,26 @@ public client_disconnected(id)
 
 public initialize_god_cfg()
 {
-	
+	cfg_set_path("plugins/god_seeker.cfg");
+
+	new tmp_cfgdir[512];
+	cfg_get_path(tmp_cfgdir,charsmax(tmp_cfgdir));
+	trim_to_dir(tmp_cfgdir);
+
+	if (!dir_exists(tmp_cfgdir))
+	{
+		log_amx("Warning config dir not found: %s",tmp_cfgdir);
+		if (mkdir(tmp_cfgdir) < 0)
+		{
+			log_error(AMX_ERR_NOTFOUND, "Can't create %s dir",tmp_cfgdir);
+			set_fail_state("Fail while create %s dir",tmp_cfgdir);
+			return;
+		}
+		else 
+		{
+			log_amx("Config dir %s created!",tmp_cfgdir);
+		}
+	}
 
 	cfg_read_str("GENERAL", "invisibled_player_model", g_sInvisModelPlayer, g_sInvisModelPlayer, charsmax(g_sInvisModelPlayer));
 	cfg_read_bool("GENERAL", "allow_software_mode", g_bAllowSoftwareMode, g_bAllowSoftwareMode);
