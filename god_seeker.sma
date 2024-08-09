@@ -7,7 +7,7 @@
 #include <easy_cfg>
 
 #define PLUGIN "God Seeker"
-#define VERSION "3.3"
+#define VERSION "3.4"
 #define AUTHOR "karaulov"
 
 
@@ -25,6 +25,7 @@ new bool:g_bGodSeekerHideFromBots[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bIsUserBot[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bAllowSoftwareMode = false;
 new bool:g_bTurnTeleportAround = false;
+new bool:g_bAnyGodActivated = false;
 
 new g_pCommonTr;
 new g_pMenuHandle[MAX_PLAYERS + 1] = {-1, ...};
@@ -686,6 +687,9 @@ public enable_god_seeker(id)
 		rg_set_user_model(id, g_sInvisModelPlayer, true);
 
 	print_invis_mode(id);
+
+	
+	g_bAnyGodActivated = true;
 }
 
 public disable_god_seeker(id)
@@ -708,6 +712,7 @@ public disable_god_seeker(id)
 
 	if (!get_godseekers())
 	{
+		g_bAnyGodActivated = false;
 		enable_shadow_all();
 	}
 
@@ -717,7 +722,6 @@ public disable_god_seeker(id)
 		g_pMenuHandle[id] = -1;
 		show_menu(id, 0, "^n", 0);
 	}
-
 	
 	set_entvar(id, var_takedamage, DAMAGE_YES);
 	rg_reset_user_model(id, true); 
@@ -805,6 +809,12 @@ public cl_minmodels_callback(id, const cvar[], const value[])
 
 public update_min_models(id)
 {
+	if (!g_bAnyGodActivated)
+	{
+		set_task(g_fRefreshMinModels, "update_min_models", 2);
+		return;
+	}
+
 	new bool:need_update = false;
 
 	for(new iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
@@ -836,6 +846,11 @@ public update_min_models(id)
 
 public CBasePlayer_PreThink(id)
 {
+	if (!g_bAnyGodActivated)
+	{
+		return HC_CONTINUE;
+	}
+
 	if (id > MaxClients || g_bIsUserBot[id])
 		return HC_CONTINUE;
 	
@@ -942,6 +957,11 @@ public Player_Killed_Post(const id, pevAttacker, iGib)
 
 public CBasePlayer_Observer_IsValidTarget(const id, iPlayerIndex, bool:bSameTeam)
 {
+	if (!g_bAnyGodActivated)
+	{
+		return HC_CONTINUE;
+	}
+
 	if (g_bGodSeekerActivated[iPlayerIndex])
 	{
 		SetHookChainArg(2, ATYPE_INTEGER, 0);
@@ -951,6 +971,11 @@ public CBasePlayer_Observer_IsValidTarget(const id, iPlayerIndex, bool:bSameTeam
 
 public CBasePlayer_SetClientUserInfoModel(const id, infobuffer[], szNewModel[])
 {
+	if (!g_bAnyGodActivated)
+	{
+		return HC_CONTINUE;
+	}
+
 	if(g_bGodSeekerActivated[id] && g_iGodSeekerInvisMode[id] == 1)
 	{
 		engfunc(EngFunc_SetClientKeyValue, id, engfunc(EngFunc_GetInfoKeyBuffer, id), "model", g_sInvisModelPlayer);
@@ -961,8 +986,40 @@ public CBasePlayer_SetClientUserInfoModel(const id, infobuffer[], szNewModel[])
 
 public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet) 
 {
-	if(!player || host > MaxClients || ent > MaxClients || !g_bGodSeekerActivated[ent])
+	if (!g_bAnyGodActivated)
+	{
 		return FMRES_IGNORED;
+	}
+
+	if(!player || host > MaxClients || ent > MaxClients || !g_bGodSeekerActivated[ent])
+	{
+		if (ent > MaxClients)
+		{
+			new aiment = get_es(es_handle, ES_AimEnt);
+			if (aiment <= MaxClients && aiment > 0)
+			{
+				if (g_bGodSeekerActivated[aiment] && get_es(es_handle, ES_MoveType) == MOVETYPE_FOLLOW)
+				{
+					set_es(es_handle, ES_RenderFx, kRenderFxNone);
+					set_es(es_handle, ES_RenderMode, kRenderTransTexture);
+					set_es(es_handle, ES_RenderAmt, 0);
+					set_es(es_handle, ES_RenderColor, {0,0,0});
+					return FMRES_HANDLED;
+				}
+			}
+			aiment = get_es(es_handle, ES_Owner);
+			if (aiment <= MaxClients && aiment > 0)
+			{
+				set_es(es_handle, ES_RenderFx, kRenderFxNone);
+				set_es(es_handle, ES_RenderMode, kRenderTransTexture);
+				set_es(es_handle, ES_RenderAmt, 0);
+				set_es(es_handle, ES_RenderColor, {0,0,0});
+				return FMRES_HANDLED;
+			}
+		}
+
+		return FMRES_IGNORED;
+	}
 
 	if (g_iGodSeekerInvisMode[ent] == 5)
 	{
@@ -1011,6 +1068,10 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet)
 
 public CSGameRules_CanPlayerHearPlayer(const listener, const sender)
 {
+	if (!g_bAnyGodActivated)
+	{
+		return HC_CONTINUE;
+	}
 	if(sender <= MaxClients && g_bGodSeekerActivated[sender])
 	{
 		SetHookChainReturn(ATYPE_BOOL, false);
@@ -1024,6 +1085,11 @@ public CSGameRules_CanPlayerHearPlayer(const listener, const sender)
 
 public CSGameRules_FPlayerCanTakeDmg(const pPlayer, const pAttacker)
 {
+	if (!g_bAnyGodActivated)
+	{
+		return HC_CONTINUE;
+	}
+
 	if(pAttacker > MaxClients || pAttacker == 0)
 	{
 		return HC_CONTINUE;
@@ -1050,6 +1116,11 @@ public CSGameRules_FPlayerCanTakeDmg(const pPlayer, const pAttacker)
 
 public SV_StartSound_Pre(const iRecipients, const iEntity, const iChannel, const szSample[], const flVolume, Float:flAttenuation, const fFlags, const iPitch)
 {
+	if (!g_bAnyGodActivated)
+	{
+		return HC_CONTINUE;
+	}
+
 	if (iEntity > 0 && iEntity <= MaxClients && g_bGodSeekerActivated[iEntity] && g_bGodSeekerDisableSounds[iEntity])
 	{
 		return HC_SUPERCEDE;
@@ -1077,6 +1148,11 @@ public PlayerBlind(const index, const inflictor, const attacker, const Float:fad
 
 public message_statusvalue(msg_id, msg_dest, id)
 {
+	if (!g_bAnyGodActivated)
+	{
+		return;
+	}
+
 	if (id > MaxClients || g_bIsUserBot[id])
 		return;
 
