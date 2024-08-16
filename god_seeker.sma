@@ -7,7 +7,7 @@
 #include <easy_cfg>
 
 #define PLUGIN "God Seeker"
-#define VERSION "3.4"
+#define VERSION "3.5"
 #define AUTHOR "karaulov"
 
 
@@ -25,6 +25,7 @@ new bool:g_bGodSeekerHideFromBots[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bIsUserBot[MAX_PLAYERS + 1] = {false,...};
 new bool:g_bAllowSoftwareMode = false;
 new bool:g_bTurnTeleportAround = false;
+new bool:g_bDisableSemiclipEffects = true;
 new bool:g_bAnyGodActivated = false;
 
 new g_pCommonTr;
@@ -32,6 +33,7 @@ new g_pMenuHandle[MAX_PLAYERS + 1] = {-1, ...};
 
 new g_iMsgShadow;
 new g_iShadowSprite;
+new g_iDefaultSemiclipAlpha = 255;
 new g_iBadClients[MAX_PLAYERS + 1] = {0, ...};
 new g_iGodSeekerInvisMode[MAX_PLAYERS + 1] = 0;
 new g_iPlayerAim[MAX_PLAYERS + 1] = {0, ...};
@@ -198,6 +200,8 @@ public initialize_god_cfg()
 	cfg_read_str("GENERAL", "invisibled_player_model", g_sInvisModelPlayer, g_sInvisModelPlayer, charsmax(g_sInvisModelPlayer));
 	cfg_read_bool("GENERAL", "allow_software_mode", g_bAllowSoftwareMode, g_bAllowSoftwareMode);
 	cfg_read_bool("GENERAL", "turn_teleport_around", g_bTurnTeleportAround, g_bTurnTeleportAround);
+	cfg_read_bool("GENERAL", "semiclip_disable_alpha", g_bDisableSemiclipEffects, g_bDisableSemiclipEffects);
+	cfg_read_int("GENERAL", "semiclip_default_alpha", g_iDefaultSemiclipAlpha, g_iDefaultSemiclipAlpha);
 
 	new cmds_toggle = 0;
 	new cmds_menu = 0;
@@ -653,6 +657,20 @@ public enable_god_seeker(id)
 {
 	if (g_bGodSeekerActivated[id])
 		return;
+		
+	if (g_bDisableSemiclipEffects)
+	{
+		server_cmd("semiclip_option transparency 255"); 
+		
+		// magic magic magic !
+		server_cmd("semiclip_option semiclip 0"); 
+		server_cmd("semiclip_option semiclip 1"); 
+		
+		if (cvar_exists("semiclip_render"))
+		{
+			set_cvar_num("semiclip_render", 0);
+		}
+	}
 
 	log_to_file("god_seeker.log", g_sLANG[ACTIVATE_GOD], g_sPlayerUsernames[id], g_sPlayerSteamIDs[id]);
 	server_print(g_sLANG[ACTIVATE_GOD], g_sPlayerUsernames[id], g_sPlayerSteamIDs[id]);
@@ -714,6 +732,20 @@ public disable_god_seeker(id)
 	{
 		g_bAnyGodActivated = false;
 		enable_shadow_all();
+		
+		if (g_bDisableSemiclipEffects)
+		{
+			server_cmd("semiclip_option transparency %i", g_iDefaultSemiclipAlpha); 
+			
+			// magic magic magic !
+			server_cmd("semiclip_option semiclip 0"); 
+			server_cmd("semiclip_option semiclip 1"); 
+			
+			if (cvar_exists("semiclip_render"))
+			{
+				set_cvar_num("semiclip_render", 1);
+			}
+		}
 	}
 
 	if (g_pMenuHandle[id] != -1)
