@@ -85,6 +85,19 @@ stock cfg_write_flt(const section[], const arg[], const Float:val)
 	ini_write_float(cfg_path, section, arg, val);
 }
 
+stock cfg_clear()
+{
+	new szFile[512] = {EOS};
+	new hFile = 0;
+	
+	formatex(szFile[get_configsdir(szFile, charsmax(szFile))], charsmax(szFile), "/%s.ini", cfg_path);
+	if (!(hFile = fopen(szFile, "wb")))
+		return 0;
+		
+	fclose(hFile);
+	return 1;
+}
+
 #if defined _easy_cfg_internal
 
 stock internal_ini_read_int(const file[], const section[], const key[], &value)
