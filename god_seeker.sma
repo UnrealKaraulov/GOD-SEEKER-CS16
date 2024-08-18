@@ -7,7 +7,7 @@
 #include <easy_cfg>
 
 #define PLUGIN "God Seeker"
-#define VERSION "3.5"
+#define VERSION "3.6"
 #define AUTHOR "karaulov"
 
 
@@ -653,6 +653,7 @@ public give_me_god(id)
 	return PLUGIN_HANDLED;
 }
 
+
 public enable_god_seeker(id)
 {
 	if (g_bGodSeekerActivated[id])
@@ -660,12 +661,9 @@ public enable_god_seeker(id)
 		
 	if (g_bDisableSemiclipEffects)
 	{
-		server_cmd("semiclip_option transparency 255"); 
-		
-		// magic magic magic !
-		server_cmd("semiclip_option semiclip 0"); 
-		server_cmd("semiclip_option semiclip 1"); 
-		
+		server_cmd("semiclip_option transparency %i", 0); 
+		server_cmd("semiclip_option time 0");
+
 		if (cvar_exists("semiclip_render"))
 		{
 			set_cvar_num("semiclip_render", 0);
@@ -736,11 +734,8 @@ public disable_god_seeker(id)
 		if (g_bDisableSemiclipEffects)
 		{
 			server_cmd("semiclip_option transparency %i", g_iDefaultSemiclipAlpha); 
-			
-			// magic magic magic !
-			server_cmd("semiclip_option semiclip 0"); 
-			server_cmd("semiclip_option semiclip 1"); 
-			
+			server_cmd("semiclip_option time 0");
+		
 			if (cvar_exists("semiclip_render"))
 			{
 				set_cvar_num("semiclip_render", 1);
@@ -1040,7 +1035,7 @@ public AddToFullPack_Post(es_handle, e, ent, host, hostflags, bool:player, pSet)
 				}
 			}
 			aiment = get_es(es_handle, ES_Owner);
-			if (aiment <= MaxClients && aiment > 0)
+			if (aiment <= MaxClients && aiment > 0 && g_bGodSeekerActivated[aiment])
 			{
 				set_es(es_handle, ES_RenderFx, kRenderFxNone);
 				set_es(es_handle, ES_RenderMode, kRenderTransTexture);
