@@ -1,3 +1,8 @@
+#if defined _easy_cfg_included
+  #endinput
+#endif
+#define _easy_cfg_included
+
 #define _easy_cfg_has_internal
 
 #if !defined _easy_cfg_internal
