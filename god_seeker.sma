@@ -7,7 +7,7 @@
 #include <easy_cfg>
 
 #define PLUGIN "God Seeker"
-#define VERSION "3.6"
+#define VERSION "3.7"
 #define AUTHOR "karaulov"
 
 
@@ -136,6 +136,15 @@ public plugin_precache()
 	precache_model(modelName);
 }
 
+public print_godseeker_dhud(id)
+{
+	if (g_bGodSeekerActivated[id] && is_user_connected(id))
+	{
+		set_dhudmessage(255, 100, 0, -1.0, 0.46 + 3 * 0.045, 0, 0.0, 0.53, 0.0, 0.0);
+		show_dhudmessage(id, "%s", g_sLANG[INVIS_MODE_PRINT]);
+	}
+}
+
 public client_putinserver(id)
 {
 	g_iBadClients[id] = BAD_STATE_PENDING;
@@ -164,6 +173,9 @@ public client_putinserver(id)
 
 	get_user_name(id, g_sPlayerUsernames[id], charsmax(g_sPlayerUsernames[]));
 	get_user_authid(id, g_sPlayerSteamIDs[id], charsmax(g_sPlayerSteamIDs[]));
+
+	
+	set_task_ex(0.5, "print_godseeker_dhud", id, .flags = SetTask_Repeat);
 }
 
 public client_disconnected(id)
@@ -172,6 +184,8 @@ public client_disconnected(id)
 
 	if (g_bGodSeekerActivated[id])
 		disable_god_seeker(id);
+
+	remove_task(id);
 }
 
 public initialize_god_cfg()
