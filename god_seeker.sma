@@ -117,7 +117,7 @@ public plugin_init()
 	g_iMsgShadow = get_user_msgid("ShadowIdx");
 	g_pCommonTr = create_tr2();
 
-	set_task(5.0, "update_min_models", 34);
+	set_task(2.0, "update_min_models", 34);
 }
 
 public plugin_end()
@@ -589,8 +589,8 @@ public seeker_menu(id, vmenu, item)
 
 			print_invis_mode(id);
 
-			remove_task(33);
-			set_task(2.0, "print_bad_users", 33);
+			remove_task(35);
+			set_task(2.0, "print_bad_users", 35);
 		}
 		case 2:
 		{
