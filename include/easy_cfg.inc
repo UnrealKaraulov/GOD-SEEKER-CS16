@@ -5,27 +5,27 @@
 
 #define _easy_cfg_has_internal
 
-#if !defined _easy_cfg_internal
-#if !defined _ini_file_included
-	#include <ini_file>
+#if defined _ini_file_included
+	#assert "Error! ini_file not supported! Please remove <ini_file> from includes!"
 #endif
-#else 
-	#include <amxmodx>
-	#include <amxmisc>
-	
-	#define ini_read_string internal_ini_read_string
-	#define ini_write_string internal_ini_write_string
-	#define ini_read_int internal_ini_read_int
-	#define ini_write_int internal_ini_write_int
-	#define ini_read_float internal_ini_read_float
-	#define ini_write_float internal_ini_write_float
-#endif
+
+#include <amxmodx>
+#include <amxmisc>
+
+#define ini_read_string internal_ini_read_string
+#define ini_write_string internal_ini_write_string
+#define ini_read_int internal_ini_read_int
+#define ini_write_int internal_ini_write_int
+#define ini_read_float internal_ini_read_float
+#define ini_write_float internal_ini_write_float
 
 new stock cfg_path[64] = "plugins/easy_cfg.ini";
+new stock cfg_max_key_value = -1; // -1 for nolimit
 
-stock cfg_set_path(const path[])
+stock cfg_set_path(const path[], max_key_val = -1)
 {
 	copy(cfg_path,charsmax(cfg_path),path);
+	cfg_max_key_value = max_key_val;
 }
 
 stock cfg_get_path(path[], len)
@@ -164,12 +164,24 @@ stock internal_ini_copyc(dest[], len, const src[], ch)
 	return -1;
 }
 
+
 stock internal_ini_read(const file[], const section[], const key[], dest[], len)
+{
+	static var1 = 0,var2 = 0, bool:var3, bool:var4;
+	return internal_ini_read_techno(file,section,key,dest,len,var1,var2,var3,var4);
+}
+
+#define EASYCFG_BUFFER_CHUNK 512
+
+stock internal_ini_read_techno(const file[], const section[], const key[], dest[], len, &begin_key_offs,&end_key_offs,&bool:sec_found,&bool:key_found)
 {
 	new hFile = 0;
 	new iRetVal = 0;
 	new bool:bSectionFound = false;
-	new szBuffer[512] = {EOS}, szFile[512] = {EOS}, szKey[64] = {EOS}, szSection[64] = {EOS};
+	new szBuffer[EASYCFG_BUFFER_CHUNK], szFile[512] = {EOS}, szKey[512] = {EOS}, szSection[512] = {EOS};
+	new readBytes = 0;
+	new curOffset = 0;
+	new curEndOffset = 0;
 
 	formatex(szFile[get_configsdir(szFile, charsmax(szFile))], charsmax(szFile), "/%s.ini", file);
 
@@ -178,7 +190,12 @@ stock internal_ini_read(const file[], const section[], const key[], dest[], len)
 
 	while (!feof(hFile))
 	{
-		if (fgets(hFile, szBuffer, charsmax(szBuffer)) == 0)
+		begin_key_offs = curOffset = ftell(hFile);
+		readBytes = fgets(hFile, szBuffer, charsmax(szBuffer));
+		end_key_offs = curEndOffset = ftell(hFile);
+		// now begin is first character, end is last character with newline
+		
+		if (readBytes == 0)
 			break;
 
 		trim(szBuffer);
@@ -194,17 +211,53 @@ stock internal_ini_read(const file[], const section[], const key[], dest[], len)
 			internal_ini_copyc(szSection, charsmax(szSection), szBuffer[1], ']');
 
 			if (equal(section, szSection))
+			{
 				bSectionFound = true;
+				sec_found = true;
+			}	
 		}
 
 		if (bSectionFound)
 		{
-			split(szBuffer, szKey, charsmax(szKey), szBuffer, charsmax(szBuffer), "=");
-			trim(szKey);
-			trim(szBuffer);
+			new iSplitPos = contain(szBuffer, "=");
 
-			if (equal(szKey, key))
-				iRetVal = copy(dest, len, szBuffer);
+			if (iSplitPos > -1) {
+				szBuffer[iSplitPos] = EOS;
+				copy(szKey, iSplitPos, szBuffer);
+				trim(szKey);
+				if (equal(szKey, key)) 
+				{
+					curOffset += iSplitPos + 1;
+					fseek(hFile,curOffset,SEEK_SET);
+
+					new totalLen = curEndOffset-curOffset; 
+					
+					if (totalLen > len)
+						totalLen = len;
+					if (cfg_max_key_value > 0 && totalLen > cfg_max_key_value)
+						totalLen = cfg_max_key_value;
+					
+					fread_blocks(hFile,dest,totalLen,BLOCK_BYTE);
+					
+					totalLen--;
+					dest[totalLen] = EOS;
+					
+					while(totalLen > 0)
+					{
+						totalLen--;
+						if (dest[totalLen] == 10 || dest[totalLen] == 13)
+						{
+							dest[totalLen] = EOS;
+						}
+						else break;
+					}
+					
+					trim(dest);
+					key_found = true;
+					iRetVal = 1;
+					break;
+				}
+			}
 		}
 	}
 
@@ -214,132 +267,90 @@ stock internal_ini_read(const file[], const section[], const key[], dest[], len)
 
 stock internal_ini_write(const file[], const section[], const key[], value[])
 {
-	new hFile = 0, hTempFile = 0;
-	new bool:bSectionExists = false, bool:bKeyExists = false, bool:bReplace = false;
-	new iKeyPosStart = 0, iKeyPosEnd = 0;
-	new szBuffer[512] = {EOS}, szFile[64] = {EOS}, szTempFile[64] = {EOS}, szKey[64] = {EOS}, szSection[64] = {EOS};
+	new hFile = 0;
+	static newLine = 10;
+	new szBuffer[512] = {EOS}, szFile[512] = {EOS};
 
 	formatex(szFile[get_configsdir(szFile, charsmax(szFile))], charsmax(szFile), "/%s.ini", file);
-	bReplace = true;
 
-	if (!(hFile = fopen(szFile, "a+t")))
-		return 0;
-
-	while (!feof(hFile))
+	new line_beg = 0,line_end = 0, bool:sec_found, bool:key_found;
+	internal_ini_read_techno(file,section,key,szBuffer,1,line_beg,line_end,sec_found,key_found);
+	
+	if (!key_found && sec_found)
 	{
-		if (fgets(hFile, szBuffer, charsmax(szBuffer)) == 0)
-			break;
+		if (!(hFile = fopen(szFile, "a+t")))
+			return 0;
+		
+		// insert new key/val to line_end
+		fseek(hFile, line_end, SEEK_SET);
+		fprintf(hFile, "%s = %s", key, value);
+		fwrite(hFile, newLine, BLOCK_BYTE);
+		fclose(hFile);
+	}
+	else if (key_found)
+	{
+		if (!(hFile = fopen(szFile, "rt")))
+			return 0;
+		
+		// skip line_beg/line_end and insert new key/val
+		static szTempFile[512];
+		formatex(szTempFile, charsmax(szTempFile), "%s.tmp", szFile);
+		new hTemp = fopen(szTempFile, "wt");
 
-		trim(szBuffer);
-
-		if (szBuffer[0] == '[')
+		if (!hTemp)
 		{
-			internal_ini_copyc(szSection, charsmax(szSection), szBuffer[1], ']');
+			fclose(hFile);
+			return 0;
+		}
 
-			if (equal(section, szSection))
+		fseek(hFile, 0, SEEK_SET);
+		fseek(hTemp, 0, SEEK_SET);
+		
+		new iBytesToCopy = line_beg;
+		while (iBytesToCopy > 0)
+		{
+			new iChunk = min(charsmax(szBuffer), iBytesToCopy);
+			new iRead = fread_blocks(hFile, szBuffer, iChunk, BLOCK_BYTE);
+			if (iRead > 0)
 			{
-				bSectionExists = true;
-				break;
+				fwrite_blocks(hTemp, szBuffer, iChunk, BLOCK_BYTE);
+				iBytesToCopy -= iRead;
+			}
+			else break;
+		}
+		
+		fseek(hFile, line_end, SEEK_SET);
+		fseek(hTemp, line_beg, SEEK_SET);
+		
+		fprintf(hTemp, "%s = %s", key, value);
+		fwrite(hTemp, newLine, BLOCK_BYTE);
+		
+		while (!feof(hFile))
+		{
+			new iRead = fread_blocks(hFile, szBuffer, charsmax(szBuffer), BLOCK_BYTE);
+			if (iRead > 0)
+			{
+				fwrite_blocks(hTemp, szBuffer, iRead, BLOCK_BYTE);
 			}
 		}
-	}
 
-	if (!bSectionExists)
-	{
-		fprintf(hFile, "^n[%s]^n%s = %s^n", section, key, value);
 		fclose(hFile);
-		return 1;
-	}
+		fclose(hTemp);
 
-	while (!feof(hFile))
-	{
-		iKeyPosStart = ftell(hFile);
-
-		if (fgets(hFile, szBuffer, charsmax(szBuffer)) == 0)
-			break;
-
-		trim(szBuffer);
-
-		if (szBuffer[0] == '[')
-			break;
-
-		if (!szBuffer[0] || szBuffer[0] == ';')
-			continue;
-
-		split(szBuffer, szKey, charsmax(szKey), szBuffer, charsmax(szBuffer), "=");
-		trim(szKey);
-		trim(szBuffer);
-
-		iKeyPosEnd = ftell(hFile);
-
-		if (equal(szKey, key))
-		{
-			bKeyExists = true;
-			break;
-		}
-	}
-
-	if (!bKeyExists)
-	{
-		if (feof(hFile))
-		{
-			fprintf(hFile, "%s = %s^n", key, value);
-			fclose(hFile);
-			return 1;
-		}
-
-		bReplace = false;
-	}
-
-	formatex(szTempFile[get_configsdir(szTempFile, charsmax(szTempFile))], charsmax(szTempFile), "/ini_file_temp.ini");
-	hTempFile = fopen(szTempFile, "wt");
-
-	if (!hTempFile)
-	{
-		fclose(hTempFile);
-		fclose(hFile);
-		return 0;
-	}
-
-	if (!bReplace)
-	{
-		fseek(hFile, 0, SEEK_SET);
-
-		while (ftell(hFile) < iKeyPosEnd)
-		{
-			fgets(hFile, szBuffer, charsmax(szBuffer));
-			fputs(hTempFile, szBuffer);
-		}
+		delete_file(szFile);
+		rename_file(szTempFile, szFile, 1);
 	}
 	else
-	{
-		fseek(hFile, 0, SEEK_SET);
-
-		while (ftell(hFile) < iKeyPosStart)
-		{
-			fgets(hFile, szBuffer, charsmax(szBuffer));
-			fputs(hTempFile, szBuffer);
-		}
-
-		fgets(hFile, szBuffer, charsmax(szBuffer));
+	{	
+		if (!(hFile = fopen(szFile, "a+t")))
+			return 0;
+		fprintf(hFile, "[%s]", section);
+		fwrite(hFile, newLine, BLOCK_BYTE);
+		fprintf(hFile, "%s = %s", key, value);
+		fwrite(hFile, newLine, BLOCK_BYTE);
+		fclose(hFile);
 	}
-
-	fprintf(hTempFile, "%s = %s^n", key, value);
-
-	while (!feof(hFile))
-	{
-		fgets(hFile, szBuffer, charsmax(szBuffer));
-		fputs(hTempFile, szBuffer);
-	}
-
-	fclose(hFile);
-	fclose(hTempFile);
-
-	delete_file(szFile);
-
-	if (!rename_file(szTempFile, szFile, 1))
-		return 0;
-
+	
 	return 1;
 }
 
